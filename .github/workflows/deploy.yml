@@ -5,7 +5,8 @@ name: Wdrożenie na kliqa.pl
 #
 # Zanim zadziała, ustaw w repozytorium (Settings → Secrets and variables → Actions):
 #   FTP_SERVER    host FTP z panelu SeoHost, np. ftp.kliqa.pl
-#   FTP_USERNAME  login konta FTP
+#   FTP_USERNAME  login konta FTP — w DirectAdmin konta dodatkowe mają postać login@kliqa.pl
+#                 (sam login działa tylko dla głównego konta panelu)
 #   FTP_PASSWORD  hasło konta FTP
 #   FTP_DIR       katalog docelowy, np. /domains/kliqa.pl/public_html/
 #
@@ -60,6 +61,9 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ secrets.FTP_DIR }}
           local-dir: ./deploy/
+          # Szyfrowane połączenie — przy zwykłym ftp hasło leci przez internet otwartym tekstem.
+          # Gdyby serwer nie wspierał TLS, w logu pojawi się błąd uzgadniania: wtedy 'ftp'.
+          protocol: ftps
           dangerous-clean-slate: false
           exclude: |
             **/.git*
