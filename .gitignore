@@ -39,3 +39,6 @@ yarn-error.log*
 tools/dem*.bin
 tools/*.json
 !tools/package.json
+
+# wynik builda na hosting — generowany komendą node tools/build.js deploy
+deploy/

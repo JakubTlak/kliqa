@@ -1,0 +1,66 @@
+name: Wdrożenie na kliqa.pl
+
+# Buduje serwis z katalogu prototyp/ i wysyła gotowe pliki na hosting przez FTP.
+# Uruchamia się po każdym pushu na main oraz ręcznie z zakładki Actions.
+#
+# Zanim zadziała, ustaw w repozytorium (Settings → Secrets and variables → Actions):
+#   FTP_SERVER    host FTP z panelu SeoHost, np. ftp.kliqa.pl
+#   FTP_USERNAME  login konta FTP
+#   FTP_PASSWORD  hasło konta FTP
+#   FTP_DIR       katalog docelowy, np. /domains/kliqa.pl/public_html/
+#
+# Hasło trafia wyłącznie do sekretów GitHuba — nie zapisuj go w plikach repozytorium.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'prototyp/**'
+      - 'tools/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-kliqa
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pobierz repozytorium
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Zbuduj wersję na hosting
+        run: |
+          node tools/build.js deploy
+          echo "--- zawartość deploy/ ---"
+          find deploy -type f | sort
+
+      - name: Sprawdź, czy build się nie rozjechał
+        run: |
+          test -f deploy/index.html
+          test -f deploy/kontakt.php
+          test -f deploy/.htaccess
+          test -f deploy/assets/terrain.b64.txt
+          test "$(find deploy -name index.html | wc -l)" -eq 15
+          grep -q 'canonical" href="https://kliqa.pl/uslugi"' deploy/uslugi/index.html
+          echo "OK — 15 podstron, zasoby i pliki serwera na miejscu"
+
+      - name: Wyślij na serwer przez FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_DIR }}
+          local-dir: ./deploy/
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**

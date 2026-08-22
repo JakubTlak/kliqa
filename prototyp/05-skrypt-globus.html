@@ -1,0 +1,688 @@
+<script>
+window.KLIQA = (function(){
+'use strict';
+var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var clamp = function(v,a,b){ return v<a?a:(v>b?b:v); };
+var smooth = function(e0,e1,x){ var t=clamp((x-e0)/(e1-e0),0,1); return t*t*(3-2*t); };
+var lerp = function(a,b,t){ return a+(b-a)*t; };
+var API = { REDUCED: REDUCED, clamp: clamp, smooth: smooth, lerp: lerp, knownRoutes: [], buildRoute: function(){} };
+
+/* ============================================================ 1. ROUTER
+   Dwa tryby, jeden kod. Na hostingu (tryb „path”) każda podstrona ma własny plik
+   i własny adres — kliqa.pl/uslugi — więc jest osobno indeksowana; nawigacja w obrębie
+   serwisu idzie przez History API, bez przeładowania. W podglądzie bez serwera
+   (tryb „hash”) te same trasy działają jako #/uslugi. */
+var ROUTE_MODE = "__ROUTE_MODE__";
+var PATHS = ROUTE_MODE === 'path';
+var TITLES = {'/':'Kliqa','/o-nas':'O nas · Kliqa','/uslugi':'Usługi · Kliqa','/edukacja':'Edukacja · Kliqa','/kontakt':'Kontakt · Kliqa'};
+
+function allPages(){ return Array.prototype.slice.call(document.querySelectorAll('.page')); }
+function routeFromLocation(){
+  if(PATHS){
+    var p = location.pathname.replace(/index\.html$/, '').replace(/\/+$/, '');
+    return p === '' ? '/' : p;
+  }
+  var h = (location.hash || '').replace(/^#/, '') || '/';
+  return h.charAt(0) === '/' ? h : '/' + h;
+}
+function hrefFor(route){ return PATHS ? route : '#' + route; }
+/** Linki w znaczniku mają postać #/trasa; tutaj dostają data-route, a w trybie path także realny adres. */
+function wireLinks(root){
+  (root || document).querySelectorAll('a[href^="#/"]').forEach(function(a){
+    var r = a.getAttribute('href').slice(1);
+    a.setAttribute('data-route', r);
+    if(PATHS) a.setAttribute('href', hrefFor(r));
+  });
+}
+API.wireLinks = wireLinks;
+
+function currentRoute(){
+  var r = routeFromLocation();
+  // Podstrony artykułów powstają dopiero przy pierwszym wejściu — nie przy starcie.
+  if(API.knownRoutes.indexOf(r) >= 0) API.buildRoute(r);
+  return allPages().some(function(p){ return p.dataset.page === r; }) ? r : '/';
+}
+/* Formularz istnieje w jednej kopii i wędruje do aktywnej strony —
+   dzięki temu nie duplikują się identyfikatory pól. */
+function placeForm(page){
+  var form = document.getElementById('ctBlock');
+  if(!form || !page) return;
+  var host = page.querySelector('[data-form-host]');
+  // Strony bez hosta (np. usługi) nie mają formularza — chowamy go zamiast zostawiać na dole.
+  form.style.display = host ? '' : 'none';
+  if(host && form.parentNode !== host) host.appendChild(form);
+}
+var navMap = {};
+function refreshNav(){
+  navMap = {};
+  document.querySelectorAll('.nav-links a[data-route]').forEach(function(a){
+    var r = a.getAttribute('data-route');
+    (navMap[r] = navMap[r] || []).push(a);
+  });
+}
+function render(scrollTarget){
+  var r = currentRoute(), active = null;
+  wireLinks(document);
+  refreshNav();
+  allPages().forEach(function(p){
+    var on = p.dataset.page === r;
+    p.hidden = !on;
+    if(on) active = p;
+  });
+  Object.keys(navMap).forEach(function(k){
+    var on = (k === r) || (k === '/edukacja' && r.indexOf('/edukacja/') === 0);
+    navMap[k].forEach(function(a){ a.classList.toggle('on', on); });
+  });
+  // Przy pierwszym renderze na hostingu zostawiamy tytuł z pliku — jest dłuższy
+  // i napisany pod wyniki wyszukiwania. Podmieniamy dopiero przy nawigacji w serwisie.
+  if(!(PATHS && firstRender)){
+    document.title = TITLES[r] || (active && active.getAttribute('data-title')) || 'Kliqa';
+  }
+  firstRender = false;
+  placeForm(active);
+  API.onRouteChange(r, active);
+  if(scrollTarget){
+    var el = document.getElementById(scrollTarget);
+    if(el){
+      requestAnimationFrame(function(){
+        var y = el.getBoundingClientRect().top + window.pageYOffset - 84;
+        window.scrollTo({ top: Math.max(0,y), behavior: REDUCED ? 'auto' : 'smooth' });
+        sweepReveal();
+      });
+      return;
+    }
+  }
+  window.scrollTo(0,0);
+  onScroll();
+}
+API.render = render;
+API.onRouteChange = function(){};
+var pendingScroll = null, firstRender = true;
+function navigate(route, scrollTarget){
+  if(routeFromLocation() === route){ render(scrollTarget); return; }
+  pendingScroll = scrollTarget;
+  if(PATHS && window.history && history.pushState){
+    history.pushState({}, '', hrefFor(route));
+    pendingScroll = null;
+    render(scrollTarget);
+  } else if(PATHS){
+    location.href = hrefFor(route);          // brak History API — zwykłe przejście, plik i tak istnieje
+  } else {
+    location.hash = hrefFor(route);          // hashchange odpali render
+  }
+}
+document.addEventListener('click', function(e){
+  var a = e.target.closest('a[data-route]');
+  if(!a) return;
+  // Ctrl/Cmd/środkowy przycisk zostawiamy przeglądarce — w trybie path otworzy realny adres.
+  if(e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  closeMenu();
+  navigate(a.getAttribute('data-route'), a.getAttribute('data-scroll'));
+});
+window.addEventListener('popstate', function(){
+  var t = pendingScroll; pendingScroll = null; render(t);
+});
+window.addEventListener('hashchange', function(){
+  if(PATHS) return;
+  var t = pendingScroll; pendingScroll = null; render(t);
+});
+
+/* ============================================================ 2. DANE TERENU */
+/* Dane terenu: w podglądzie wklejone w stronę, na hostingu doczytywane z pliku —
+   dzięki temu przeglądarka pobiera je raz na cały serwis, a każda podstrona jest lżejsza. */
+var TERRAIN_B64 = "__TERRAIN__";
+var TERRAIN_URL = "__TERRAIN_URL__";
+var TERRA = null, terrainReady = false;
+
+function b64ToBytes(b64){
+  var bin = atob(b64), len = bin.length, out = new Uint8Array(len);
+  for(var i=0;i<len;i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function gunzip(bytes){
+  if(typeof DecompressionStream === 'undefined') return Promise.reject(new Error('brak DecompressionStream'));
+  return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()
+    .then(function(ab){ return new Uint8Array(ab); });
+}
+function decodeElev(b){ var t = (b - 1) / 254; return Math.pow(t, 1/0.62) * 6200; }
+function parseTerrain(buf){
+  var dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  var hl = dv.getUint32(0, true);
+  var header = JSON.parse(new TextDecoder().decode(buf.subarray(4, 4+hl)));
+  var off = 4 + hl, n = header.globalCount;
+  var gxyz = new Float32Array(n*3);
+  for(var i=0;i<n;i++){
+    var a = buf[off+i*4], b = buf[off+i*4+1], c = buf[off+i*4+2];
+    var u = (a<<4)|(b>>4), v = ((b&15)<<8)|c;
+    var lon = ((u/4095)*360-180)*Math.PI/180, lat = ((v/4095)*180-90)*Math.PI/180;
+    var cl = Math.cos(lat);
+    gxyz[i*3] = cl*Math.sin(lon); gxyz[i*3+1] = Math.sin(lat); gxyz[i*3+2] = cl*Math.cos(lon);
+  }
+  off += n*4;
+  var conts = header.continents.map(function(c){
+    var grid = buf.subarray(off, off + c.cells); off += c.cells;
+    return { meta: c, grid: grid, built: null };
+  });
+  return { global: { xyz: gxyz, n: n }, continents: conts };
+}
+
+var EXAG = 0.026;
+function buildContinent(c){
+  if(c.built) return c.built;
+  var m = c.meta, grid = c.grid, land = 0, k;
+  for(k=0;k<grid.length;k++) if(grid[k]) land++;
+  var xyz = new Float32Array(land*3), bucket = new Uint8Array(land);
+  var p = 0, w = 0, mx = 0, my = 0, mz = 0;
+  for(var r=0;r<m.rows;r++){
+    var lat = m.lat0 + r*m.step;
+    var cosl = Math.max(0.12, Math.cos(lat*Math.PI/180));
+    var dLon = m.step/cosl, cols = m.cols[r];
+    var latR = lat*Math.PI/180, sinLat = Math.sin(latR), cosLat = Math.cos(latR);
+    for(var i=0;i<cols;i++, p++){
+      var e = grid[p];
+      if(!e) continue;
+      var meters = decodeElev(e);
+      var lonR = (m.lon0 + i*dLon)*Math.PI/180;
+      var rad = 1 + (meters/6200)*EXAG;
+      var ux = cosLat*Math.sin(lonR), uy = sinLat, uz = cosLat*Math.cos(lonR);
+      xyz[w*3] = ux*rad; xyz[w*3+1] = uy*rad; xyz[w*3+2] = uz*rad;
+      mx += ux; my += uy; mz += uz;
+      var contour = (meters % 400) < 52;
+      var b;
+      if(meters > 3200) b = 4; else if(meters > 1800) b = 3;
+      else if(meters > 800) b = 2; else if(meters > 220) b = 1; else b = 0;
+      bucket[w] = contour ? 5 : b;
+      w++;
+    }
+  }
+  var ml = Math.sqrt(mx*mx+my*my+mz*mz) || 1;
+  mx /= ml; my /= ml; mz /= ml;
+  var ang = new Float32Array(land);
+  for(k=0;k<land;k++){
+    var ax = xyz[k*3], ay = xyz[k*3+1], az = xyz[k*3+2];
+    var al = Math.sqrt(ax*ax+ay*ay+az*az) || 1;
+    ang[k] = Math.acos(clamp((ax*mx+ay*my+az*mz)/al, -1, 1));
+  }
+  ang.sort();
+  c.built = {
+    xyz: xyz, bucket: bucket, n: land,
+    theta: ang[Math.min(land-1, Math.floor(land*0.96))] || 0.3,
+    latC: Math.asin(clamp(my,-1,1))*180/Math.PI,
+    lonC: Math.atan2(mx, mz)*180/Math.PI,
+    name: m.pl
+  };
+  return c.built;
+}
+
+/* ============================================================ 3. GLOBUS I SATELITY */
+var canvas = document.getElementById('globe');
+var ctx = canvas.getContext('2d');
+var W=0,H=0,R0=0,CX=0,CY=0;
+var yaw=-0.35, pitch=0.32, vyaw=0, zoom=1;
+var dragging=false, lastX=0, lastY=0, moved=0, downT=0;
+var pings=[], clicks=0;
+var countEl = document.getElementById('clickCount');
+var geoName = document.getElementById('geoName'), geoCoord = document.getElementById('geoCoord');
+var pickIdx = -1, target = null, startYaw = 0, startPitch = 0, startZoom = 1, locked = false;
+var globalFade = 1, terrainFade = 0, satFade = 1, satPush = 0;
+
+/* Satelity: każdy na własnej orbicie (promień, nachylenie, węzeł, tempo).
+   Wypełniają pustkę wokół kuli, a przy zbliżeniu odlatują poza kadr. */
+var SATS = (function(){
+  var out = [], i, seed = 7;
+  function rnd(){ seed = (seed*1664525 + 1013904223) % 4294967296; return seed/4294967296; }
+  for(i=0;i<18;i++){
+    out.push({
+      r: 1.22 + rnd()*0.62,
+      inc: (rnd()-0.5)*1.5,
+      node: rnd()*Math.PI*2,
+      phase: rnd()*Math.PI*2,
+      speed: (0.10 + rnd()*0.18) * (rnd() > 0.35 ? 1 : -1),
+      size: rnd() > 0.55 ? 4 : 3,
+      ring: i % 2 === 0,
+      beam: i % 4 === 1
+    });
+  }
+  return out;
+})();
+function orbitPoint(s, ang){
+  var r = s.r * (1 + satPush*7);
+  var px = Math.cos(ang)*r, pz = Math.sin(ang)*r;
+  var ci = Math.cos(s.inc), si = Math.sin(s.inc);
+  var py = -pz*si, pz1 = pz*ci;
+  var cn = Math.cos(s.node), sn = Math.sin(s.node);
+  return [px*cn + pz1*sn, py, -px*sn + pz1*cn];
+}
+
+function resize(){
+  var r = canvas.getBoundingClientRect();
+  // 1.5 zamiast 2: przy tej gęstości punktów różnicy nie widać, a pikseli jest o 44% mniej
+  var dpr = DPR = Math.min(window.devicePixelRatio||1, 1.5);
+  W = Math.max(1, r.width); H = Math.max(1, r.height);
+  canvas.width = Math.round(W*dpr); canvas.height = Math.round(H*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  R0 = Math.min(W,H) * (W < 760 ? 0.40 : 0.37);
+  // Scena zajmuje całe okno, ale górne 70 px zasłania pasek nawigacji —
+  // środek kuli liczymy więc względem obszaru, który użytkownik faktycznie widzi.
+  CX = W/2; CY = (H + 70)/2;
+  scaleDots();
+}
+function pickContinent(){
+  if(!TERRA) return;
+  var n = TERRA.continents.length, i;
+  do { i = (Math.random()*n)|0; } while(n > 1 && i === pickIdx);
+  pickIdx = i;
+  target = buildContinent(TERRA.continents[i]);
+  if(geoName) geoName.textContent = target.name.toUpperCase();
+  if(geoCoord){
+    var la = target.latC, lo = target.lonC;
+    geoCoord.textContent = Math.abs(la).toFixed(1) + '°' + (la>=0?'N':'S') + ' ' +
+                           Math.abs(lo).toFixed(1) + '°' + (lo>=0?'E':'W');
+  }
+}
+function targetZoom(){
+  if(!target) return 4;
+  var need = (Math.min(W,H)*0.46) / Math.max(0.02, Math.sin(target.theta));
+  return clamp(need/R0, 1.5, 22);
+}
+function addPing(lon,lat,manual){
+  pings.push({lon:lon, lat:lat, t:performance.now(), manual:!!manual});
+  if(pings.length>24) pings.shift();
+  clicks++;
+  if(countEl) countEl.textContent = clicks.toLocaleString('pl-PL');
+}
+/* Kliknięcia lądują tam, gdzie patrzy kamera: na kuli albo na wybranym kontynencie. */
+function spawnAuto(){
+  var src = (terrainFade > 0.45 && target) ? target : (TERRA ? TERRA.global : null);
+  if(!src) return;
+  var R = R0*zoom;
+  var cy=Math.cos(yaw), sy=Math.sin(yaw), cp=Math.cos(pitch), sp=Math.sin(pitch);
+  for(var k=0;k<40;k++){
+    var i = (Math.random()*src.n)|0;
+    var x = src.xyz[i*3], y = src.xyz[i*3+1], z = src.xyz[i*3+2];
+    var x1 = x*cy + z*sy, z1 = -x*sy + z*cy;
+    var y2 = y*cp - z1*sp, z2 = y*sp + z1*cp;
+    if(z2 <= 0.2) continue;
+    var sx = CX + x1*R, sy2 = CY - y2*R;
+    if(sx < W*0.06 || sx > W*0.94 || sy2 < H*0.08 || sy2 > H*0.92) continue;
+    var len = Math.sqrt(x*x+y*y+z*z) || 1;
+    addPing(Math.atan2(x/len, z/len), Math.asin(clamp(y/len,-1,1)), false);
+    return;
+  }
+}
+var nextSpawn = 0;
+
+/* Punkty lądu trafiają wprost do bufora pikseli, nie do ścieżek Canvas.
+   Kilka tysięcy wywołań rect()+fill() kosztowało kilkanaście milisekund na klatkę;
+   zapis do ImageData i jedno putImageData to ułamek tego. */
+var IMG = null, PIX = null, DPR = 1, imgDirty = false;
+function ensureImg(){
+  if(IMG && IMG.width === canvas.width && IMG.height === canvas.height) return;
+  IMG = ctx.createImageData(canvas.width, canvas.height);
+  PIX = new Uint32Array(IMG.data.buffer);
+}
+function imgReset(){
+  ensureImg();
+  PIX.fill(0);
+  imgDirty = true;
+}
+/** color: 0x00BBGGRR (bez alfy), a: 0..1, sz: bok kropki w pikselach urządzenia */
+function putDot(sx, sy, sz, color, a){
+  var px = (sx*DPR)|0, py = (sy*DPR)|0;
+  var w = canvas.width, h = canvas.height;
+  var av = (a*255)|0;
+  if(av < 4) return;
+  var v = (av << 24) | color;
+  if(sz <= 1){
+    if(px >= 0 && px < w && py >= 0 && py < h) PIX[py*w + px] = v;
+    return;
+  }
+  var x0 = px, x1 = px + sz, y0 = py, y1 = py + sz;
+  if(x0 < 0) x0 = 0; if(y0 < 0) y0 = 0;
+  if(x1 > w) x1 = w; if(y1 > h) y1 = h;
+  for(var yy=y0; yy<y1; yy++){
+    var row = yy*w;
+    for(var xx=x0; xx<x1; xx++) PIX[row + xx] = v;
+  }
+}
+var GLOBE_ALPHA = [0.16,0.28,0.42,0.58,0.78];
+var TERR_ALPHA  = [0.38,0.50,0.64,0.82,0.98,0.94];
+/* Rozmiary kropek podane w pikselach CSS; na piksele urządzenia przeliczamy raz,
+   przy zmianie rozmiaru płótna — inaczej na ekranach HiDPI kropki byłyby o połowę drobniejsze. */
+var GLOBE_CSS = [1.1,1.3,1.5,1.7,1.9];
+var TERR_CSS  = [1.3,1.5,1.9,2.3,2.7,1.7];
+var GLOBE_PX  = new Int32Array(5);
+var TERR_PX   = new Int32Array(6);
+function scaleDots(){
+  for(var i=0;i<5;i++) GLOBE_PX[i] = Math.max(1, Math.round(GLOBE_CSS[i]*DPR));
+  for(var k=0;k<6;k++) TERR_PX[k]  = Math.max(1, Math.round(TERR_CSS[k]*DPR));
+}
+
+function draw(now){
+  var R = R0*zoom, t = now/1000;
+  ctx.clearRect(0,0,W,H);
+  var cy=Math.cos(yaw), sy=Math.sin(yaw), cp=Math.cos(pitch), sp=Math.sin(pitch);
+  var i, j, x, y, z, x1, z1, y2, z2, sx, sy2, b, s, pt;
+  var sphereFade = 1 - terrainFade;
+
+  if(TERRA && globalFade > 0.01){
+    var gp = TERRA.global;
+    if(!imgDirty) imgReset();
+    for(i=0;i<gp.n;i++){
+      x = gp.xyz[i*3]; y = gp.xyz[i*3+1]; z = gp.xyz[i*3+2];
+      x1 = x*cy + z*sy; z1 = -x*sy + z*cy;
+      y2 = y*cp - z1*sp; z2 = y*sp + z1*cp;
+      if(z2 <= 0.02) continue;
+      sx = CX + x1*R; sy2 = CY - y2*R;
+      if(sx < 0 || sx > W || sy2 < 0 || sy2 > H) continue;
+      b = z2 < 0.2 ? 0 : (z2 < 0.4 ? 1 : (z2 < 0.6 ? 2 : (z2 < 0.8 ? 3 : 4)));
+      putDot(sx, sy2, GLOBE_PX[b], 0x00FFFFFF, GLOBE_ALPHA[b]*globalFade);
+    }
+  }
+
+  if(target && terrainFade > 0.01){
+    var tx = target.xyz, tbk = target.bucket;
+    if(!imgDirty) imgReset();
+    var big = zoom > 6 ? 1 : 0;
+    for(i=0;i<target.n;i++){
+      x = tx[i*3]; y = tx[i*3+1]; z = tx[i*3+2];
+      x1 = x*cy + z*sy; z1 = -x*sy + z*cy;
+      y2 = y*cp - z1*sp; z2 = y*sp + z1*cp;
+      if(z2 <= 0.02) continue;
+      sx = CX + x1*R; sy2 = CY - y2*R;
+      if(sx < 0 || sx > W || sy2 < 0 || sy2 > H) continue;
+      b = tbk[i];
+      putDot(sx, sy2, TERR_PX[b] + big, b === 5 ? 0x0096FFD5 : 0x00FFFFFF, TERR_ALPHA[b]*terrainFade);
+    }
+  }
+  // Warstwa punktów idzie na płótno jednym zapisem; tło kuli dorysowujemy POD nią.
+  if(imgDirty){
+    ctx.putImageData(IMG, 0, 0);
+    imgDirty = false;
+    ctx.globalCompositeOperation = 'destination-over';
+    if(sphereFade > 0.01){
+      var g2 = ctx.createRadialGradient(CX,CY,R*0.55,CX,CY,R*1.35);
+      g2.addColorStop(0,'rgba(89,115,33,'+(0.16*sphereFade)+')');
+      g2.addColorStop(0.62,'rgba(49,64,19,'+(0.10*sphereFade)+')');
+      g2.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g2; ctx.beginPath(); ctx.arc(CX,CY,R*1.35,0,6.2832); ctx.fill();
+      ctx.strokeStyle='rgba(197,255,74,'+(0.18*sphereFade)+')'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(CX,CY,R,0,6.2832); ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* Satelity idą PO wgraniu warstwy punktów: putImageData nadpisuje piksele,
+     więc narysowane wcześniej znikały pod terenem. */
+  if(satFade > 0.01 && !REDUCED){
+    for(i=0;i<SATS.length;i++){
+      s = SATS[i];
+      if(!s.ring) continue;
+      ctx.strokeStyle = 'rgba(122,122,122,'+(0.14*satFade).toFixed(3)+')';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for(j=0;j<=54;j++){
+        pt = orbitPoint(s, (j/54)*Math.PI*2);
+        x1 = pt[0]*cy + pt[2]*sy; z1 = -pt[0]*sy + pt[2]*cy;
+        y2 = pt[1]*cp - z1*sp;
+        sx = CX + x1*R; sy2 = CY - y2*R;
+        if(j===0) ctx.moveTo(sx,sy2); else ctx.lineTo(sx,sy2);
+      }
+      ctx.stroke();
+    }
+    for(i=0;i<SATS.length;i++){
+      s = SATS[i];
+      for(var tr=3; tr>=0; tr--){
+        pt = orbitPoint(s, s.phase + (t - tr*0.22)*s.speed);
+        x1 = pt[0]*cy + pt[2]*sy; z1 = -pt[0]*sy + pt[2]*cy;
+        y2 = pt[1]*cp - z1*sp; z2 = pt[1]*sp + z1*cp;
+        sx = CX + x1*R; sy2 = CY - y2*R;
+        var dx2 = sx-CX, dy2 = sy2-CY;
+        if(z2 < 0 && (dx2*dx2 + dy2*dy2) < R*R) continue;
+        if(sx < -40 || sx > W+40 || sy2 < -40 || sy2 > H+40) continue;
+        var a2 = satFade * (tr===0 ? (z2 < 0 ? 0.4 : 0.95) : 0.16/tr);
+        var sz = s.size * (tr===0 ? 1 : 0.6);
+        ctx.fillStyle = 'rgba(197,255,74,'+a2.toFixed(3)+')';
+        ctx.fillRect(sx-sz/2, sy2-sz/2, sz, sz);
+        if(tr===0 && s.size > 3){
+          ctx.strokeStyle = 'rgba(197,255,74,'+(a2*0.45).toFixed(3)+')';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(sx-6.5,sy2); ctx.lineTo(sx+6.5,sy2);
+          ctx.moveTo(sx,sy2-6.5); ctx.lineTo(sx,sy2+6.5);
+          ctx.stroke();
+        }
+        // wiązka do powierzchni: satelita zbiera dane, nie wisi bez celu
+        if(tr===0 && s.beam && z2 > 0.15){
+          var bl = Math.sqrt(dx2*dx2 + dy2*dy2) || 1;
+          var hx = CX + dx2/bl*R, hy = CY + dy2/bl*R;
+          ctx.strokeStyle = 'rgba(197,255,74,'+(a2*0.16).toFixed(3)+')';
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(sx,sy2); ctx.lineTo(hx,hy); ctx.stroke();
+          ctx.fillStyle = 'rgba(197,255,74,'+(a2*0.5).toFixed(3)+')';
+          ctx.fillRect(hx-1, hy-1, 2, 2);
+        }
+      }
+    }
+  }
+
+
+  /* kliknięcia — rozmiar liczony w pikselach ekranu, więc czytelne też po zbliżeniu */
+  var base = Math.min(W,H);
+  for(var pi=pings.length-1;pi>=0;pi--){
+    var pg = pings[pi], age = (now - pg.t)/1900;
+    if(age>=1){ pings.splice(pi,1); continue; }
+    var cl2 = Math.cos(pg.lat);
+    x = cl2*Math.sin(pg.lon); y = Math.sin(pg.lat); z = cl2*Math.cos(pg.lon);
+    x1 = x*cy + z*sy; z1 = -x*sy + z*cy;
+    y2 = y*cp - z1*sp; z2 = y*sp + z1*cp;
+    if(z2 <= 0.02) continue;
+    sx = CX + x1*R; sy2 = CY - y2*R;
+    if(sx < -80 || sx > W+80 || sy2 < -80 || sy2 > H+80) continue;
+    var fade = (1-age) * clamp(z2*2.2,0,1);
+    var rad = base*0.012 + age*base*0.085;
+    ctx.strokeStyle='rgba(197,255,74,'+(fade*0.85)+')'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.arc(sx,sy2,rad,0,6.2832); ctx.stroke();
+    ctx.fillStyle='rgba(197,255,74,'+fade+')';
+    ctx.beginPath(); ctx.arc(sx,sy2,2.4,0,6.2832); ctx.fill();
+    if(pg.manual && age<0.6){
+      ctx.save(); ctx.translate(sx+3, sy2+3); ctx.scale(0.7,0.7);
+      ctx.fillStyle='rgba(197,255,74,'+(1-age/0.6)+')';
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(16,11); ctx.lineTo(8.5,11.6); ctx.lineTo(5.2,19);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+  }
+}
+
+var running = true, sizeTick = 0;
+function frame(now){
+  if((++sizeTick % 20) === 0){
+    var cw = canvas.clientWidth, ch = canvas.clientHeight;
+    if(cw > 0 && ch > 0 && (Math.abs(cw - W) > 1 || Math.abs(ch - H) > 1)) resize();
+  }
+  if(!locked && Math.abs(zoom-1) > 0.002) zoom = lerp(zoom, 1, 0.12);
+  if(!REDUCED && !locked && !dragging){ yaw += 0.0016 + vyaw; vyaw *= 0.94; }
+  if(!REDUCED && now > nextSpawn){ spawnAuto(); nextSpawn = now + 420 + Math.random()*900; }
+  if(running) draw(now);
+  requestAnimationFrame(frame);
+}
+
+canvas.addEventListener('pointerdown', function(e){
+  dragging=true; moved=0; downT=performance.now();
+  lastX=e.clientX; lastY=e.clientY; canvas.classList.add('drag');
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', function(e){
+  if(!dragging || locked) return;
+  var dx=e.clientX-lastX, dy=e.clientY-lastY;
+  moved += Math.abs(dx)+Math.abs(dy);
+  yaw += dx*0.005; vyaw = dx*0.0006;
+  pitch = clamp(pitch - dy*0.004, -0.9, 0.9);
+  lastX=e.clientX; lastY=e.clientY;
+  if(REDUCED) draw(performance.now());
+});
+canvas.addEventListener('pointerup', function(e){
+  if(!dragging) return;
+  dragging=false; canvas.classList.remove('drag');
+  if(moved<7 && performance.now()-downT<420){
+    var r = canvas.getBoundingClientRect(), R = R0*zoom;
+    var nx = (e.clientX - r.left - CX)/R, ny = -(e.clientY - r.top - CY)/R;
+    var d2 = nx*nx+ny*ny;
+    if(d2<=1){
+      var nz = Math.sqrt(1-d2);
+      var cp2=Math.cos(-pitch), sp2=Math.sin(-pitch);
+      var y1 = ny*cp2 - nz*sp2, z1b = ny*sp2 + nz*cp2;
+      var cy2=Math.cos(-yaw), sy2b=Math.sin(-yaw);
+      var x2 = nx*cy2 + z1b*sy2b, z2b = -nx*sy2b + z1b*cy2;
+      addPing(Math.atan2(x2,z2b), Math.asin(clamp(y1,-1,1)), true);
+      if(REDUCED) draw(performance.now());
+    }
+  }
+});
+canvas.addEventListener('pointercancel', function(){ dragging=false; canvas.classList.remove('drag'); });
+
+resize();
+if(window.ResizeObserver) new ResizeObserver(function(){ resize(); draw(performance.now()); }).observe(canvas);
+new IntersectionObserver(function(en){ running = en[0].isIntersecting; }, {threshold:0}).observe(canvas);
+
+function loadTerrain(){
+  if(TERRAIN_B64) return Promise.resolve(b64ToBytes(TERRAIN_B64));
+  if(!TERRAIN_URL) return Promise.reject(new Error('brak źródła terenu'));
+  return fetch(TERRAIN_URL).then(function(r){
+    if(!r.ok) throw new Error('teren: HTTP ' + r.status);
+    return r.text();
+  }).then(function(t){ return b64ToBytes(t.trim()); });
+}
+loadTerrain()
+  .then(gunzip)
+  .then(function(buf){
+    TERRA = parseTerrain(buf);
+    terrainReady = true;
+    pickContinent();
+    draw(performance.now());
+    onScroll();
+  })
+  .catch(function(err){ console.warn('Teren niedostępny:', err && err.message); });
+draw(performance.now());
+if(!REDUCED) requestAnimationFrame(frame);
+
+/* ============================================================ 4. CHOREOGRAFIA HERO */
+var hero = document.getElementById('hero');
+var s1 = document.querySelector('.slide-1'), s2 = document.querySelector('.slide-2');
+var stageBg = document.querySelector('.stage-bg'), vig = document.querySelector('.hero-vig');
+var amb = document.querySelector('.hero-amb');
+var geoTag = document.querySelector('.geo-tag'), hud = document.querySelector('.hero-hud');
+var marquee = document.querySelector('.marquee'), cue = document.querySelector('.scroll-cue');
+var LOCK_IN = 0.16, LOCK_OUT = 0.72;
+
+function heroScroll(){
+  if(REDUCED || !hero || hero.offsetParent === null) return;
+  var rect = hero.getBoundingClientRect();
+  var total = hero.offsetHeight - window.innerHeight;
+  if(total <= 0) return;
+  var p = clamp(-rect.top/total, 0, 1);
+
+  if(p >= LOCK_IN && !locked){
+    locked = true; startYaw = yaw; startPitch = pitch; startZoom = zoom;
+  } else if(p < LOCK_IN && locked){
+    locked = false;
+    pickContinent();
+  }
+  if(locked && target){
+    var tt = smooth(LOCK_IN, LOCK_OUT, p);
+    var tYaw = -target.lonC*Math.PI/180, tPitch = target.latC*Math.PI/180;
+    var d = ((tYaw - startYaw + Math.PI) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI) - Math.PI;
+    yaw = startYaw + d*tt;
+    pitch = lerp(startPitch, tPitch, tt);
+    zoom = lerp(startZoom, targetZoom(), tt*tt);
+  }
+
+  satPush = smooth(0.02, 0.34, p);
+  satFade = 1 - smooth(0.04, 0.30, p);
+  globalFade = terrainReady ? 1 - smooth(0.28, 0.52, p) : 1;
+  terrainFade = terrainReady ? smooth(0.34, 0.66, p) : 0;
+
+  var o1 = 1 - smooth(0.10, 0.34, p);
+  var o2 = smooth(0.56, 0.78, p);
+  s1.style.setProperty('--s1o', o1.toFixed(3));
+  s1.style.setProperty('--s1y', (-p*70).toFixed(1)+'px');
+  s1.style.pointerEvents = o1 > 0.5 ? 'auto' : 'none';
+  s2.style.setProperty('--s2o', o2.toFixed(3));
+  s2.style.setProperty('--s2y', (44-44*o2).toFixed(1)+'px');
+  s2.style.pointerEvents = o2 > 0.5 ? 'auto' : 'none';
+
+  stageBg.style.setProperty('--bgo', smooth(0.30, 0.72, p).toFixed(3));
+  vig.style.setProperty('--vig', (1 - 0.45*smooth(0.25, 0.6, p)).toFixed(3));
+  amb.style.setProperty('--amb', (1 - smooth(0.06, 0.36, p)).toFixed(3));
+  geoTag.style.setProperty('--geo', smooth(0.52, 0.7, p).toFixed(3));
+  hud.style.setProperty('--hud', (1 - smooth(0.12, 0.3, p)).toFixed(3));
+  cue.style.setProperty('--cue', (1 - smooth(0, 0.09, p)).toFixed(3));
+  marquee.style.setProperty('--mq', (105 - 105*smooth(0.6, 0.82, p)).toFixed(1)+'%');
+}
+
+/* ============================================================ 5. PĘTLA SCROLLA I REVEAL */
+var rvNodes = Array.prototype.slice.call(document.querySelectorAll('.rv'));
+function sweepReveal(){
+  if(!rvNodes.length) return;
+  var vh = window.innerHeight;
+  rvNodes = rvNodes.filter(function(el){
+    if(el.offsetParent === null) return true;
+    if(el.getBoundingClientRect().top < vh*0.92){ el.classList.add('in'); return false; }
+    return true;
+  });
+}
+API.registerReveal = function(){
+  var fresh = Array.prototype.slice.call(document.querySelectorAll('.rv:not(.in)'));
+  fresh.forEach(function(el){ if(rvNodes.indexOf(el) === -1) rvNodes.push(el); });
+  sweepReveal();
+};
+var scrollHooks = [];
+API.onScrollAdd = function(fn){ scrollHooks.push(fn); };
+var ticking=false;
+function onScroll(){
+  if(ticking) return; ticking=true;
+  requestAnimationFrame(function(){
+    heroScroll();
+    for(var i=0;i<scrollHooks.length;i++) scrollHooks[i]();
+    sweepReveal();
+    ticking=false;
+  });
+}
+API.onScroll = onScroll;
+window.addEventListener('scroll', onScroll, {passive:true});
+window.addEventListener('resize', function(){ resize(); onScroll(); });
+
+/* ============================================================ 6. MENU */
+var burger = document.getElementById('burger'), navlinks = document.getElementById('navlinks');
+function closeMenu(){ navlinks.classList.remove('open'); burger.setAttribute('aria-expanded','false'); }
+burger.addEventListener('click', function(){
+  var open = navlinks.classList.toggle('open');
+  burger.setAttribute('aria-expanded', open ? 'true':'false');
+});
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeMenu(); });
+
+/* ============================================================ 7. PASKI */
+var MQ = ['Performance marketing','ROAS','Google Ads','Koszt pozyskania','Meta Ads','Atrybucja',
+          'TikTok Ads','Core Web Vitals','SEO','Automatyzacja','Testy A/B','Wdrożenia AI',
+          'Lejek sprzedażowy','Consent Mode v2','Kreacje','Skalowanie budżetu'];
+var mqTrack = document.getElementById('mqTrack');
+if(mqTrack){
+  var mqHtml = MQ.map(function(t){ return '<span class="marquee-item">'+t+'</span>'; }).join('');
+  mqTrack.innerHTML = mqHtml + mqHtml;
+}
+
+/* ============================================================ 8. ISKRA KLIKNIĘCIA */
+if(!REDUCED){
+  document.addEventListener('pointerdown', function(e){
+    if(e.target === canvas) return;
+    var el = document.createElement('div');
+    el.className='spark'; el.style.left=e.clientX+'px'; el.style.top=e.clientY+'px';
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 560);
+  }, {passive:true});
+}
+
+return API;
+})();
+</script>

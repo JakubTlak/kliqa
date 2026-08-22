@@ -150,6 +150,20 @@ nie tylko listę zadań. Wszystkie liczą się w przeglądarce, bez API, i są o
 | Wdrożenia AI | Generator opisów | Wejście, wyjście i koszt na 1000 SKU — składanie offline, bez modelu |
 | Social media | Test hooków | Zatrzymanie kciuka i różnorodność wariantów w jednym zestawie |
 
+## 5b. Wdrożenie na kliqa.pl
+
+Serwis jedzie na hostingu SeoHost (DirectAdmin) jako **statyczne pliki**: `node tools/build.js deploy`
+generuje katalog `deploy/` z piętnastoma podstronami, z których każda ma własny adres
+(`kliqa.pl/uslugi`, `kliqa.pl/edukacja/consent-mode-v2`), własny tytuł, opis i canonical —
+dzięki temu Google indeksuje je osobno. Nawigacja wewnątrz serwisu idzie przez History API,
+więc przechodzenie między podstronami nie przeładowuje strony.
+
+Formularz obsługuje `kontakt.php` na tym samym serwerze (funkcja `mail()`, pułapka na boty,
+limit zgłoszeń na IP). Gdy poczta odmówi, strona przechodzi na tryb mailto — kontakt nie znika.
+
+Kolejne wdrożenia robi workflow GitHub Actions po pushu na `main`; dane FTP siedzą w sekretach
+repozytorium. Instrukcja pierwszego wgrania, SSL i skrzynki nadawczej: README.md.
+
 ## 6. Poczta i formularz
 
 Formularz wysyła `POST /api/contact`, serwer waliduje dane (zod) i wysyła maila przez Resend na

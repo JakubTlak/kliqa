@@ -1,0 +1,250 @@
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="#/" aria-label="Kliqa — strona główna">
+      <span class="brand-mark" aria-hidden="true"></span>
+    </a>
+    <nav class="nav-links" id="navlinks">
+      <a href="#/uslugi">Usługi</a>
+      <a href="#/o-nas">O nas</a>
+      <a href="#/edukacja">Edukacja</a>
+      <a href="#/kontakt">Kontakt</a>
+    </nav>
+    <a class="btn btn-ghost nav-cta" href="#/kontakt">Porozmawiajmy</a>
+    <button class="nav-burger" id="burger" aria-expanded="false" aria-controls="navlinks">Menu</button>
+  </div>
+</header>
+
+<main id="top">
+<!-- ============================================================ STRONA GŁÓWNA -->
+<div class="page" data-page="/">
+
+  <section class="hero" id="hero">
+    <div class="hero-stage">
+      <div class="stage-bg" aria-hidden="true"></div>
+      <canvas id="globe" role="img" aria-label="Interaktywny globus z satelitami — każdy błysk to kliknięcie w kampanii. Przy przewijaniu kamera zbliża się do losowego kontynentu."></canvas>
+      <div class="hero-vig" aria-hidden="true"></div>
+      <div class="hero-amb" aria-hidden="true">
+        <span class="corner tl"></span><span class="corner tr"></span>
+        <span class="corner bl"></span><span class="corner br"></span>
+      </div>
+
+      <div class="geo-tag" aria-hidden="true">
+        <span id="geoName">EUROPA</span>
+        <span class="geo-sub" id="geoCoord">52.2°N 21.0°E</span>
+      </div>
+
+      <div class="slide slide-1">
+        <p class="eyebrow"><span class="b">[</span> PERFORMANCE · DANE · AUTOMATYZACJA <span class="b">]</span></p>
+        <h1 class="display">Zmieniamy kliknięcia<br>w <span class="accent">przychód</span></h1>
+        <p class="hero-sub">Nadajemy wartości każdemu kliknięciu.</p>
+      </div>
+
+      <div class="slide slide-2">
+        <p class="eyebrow"><span class="b">[</span> ZEJDŹMY NA ZIEMIĘ <span class="b">]</span></p>
+        <h2 class="display">Marketing oparty o dane<br>to <span class="accent">pewna inwestycja</span></h2>
+        <p class="hero-sub">Przeanalizujemy twój biznes i zoptymalizujemy jego działanie.</p>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
+          <a class="btn btn-fill" href="#/kontakt">Porozmawiajmy <span class="ar">→</span></a>
+          <a class="btn btn-line" href="#/uslugi">Zobacz usługi</a>
+        </div>
+      </div>
+
+      <div class="scroll-cue" aria-hidden="true"></div>
+
+      <div class="hero-hud">
+        <div>
+          <div>[ Śledzimy każde kliknięcie ]</div>
+          <div class="hud-hint" style="margin-top:8px"><span class="blip"></span> Kliknij planetę · przeciągnij, aby obrócić</div>
+        </div>
+        <div class="hud-r">
+          <div>Kliknięcia w tej sesji</div>
+          <div class="hud-count" id="clickCount">0</div>
+        </div>
+      </div>
+
+      <div class="marquee" aria-hidden="true"><div class="marquee-track" id="mqTrack"></div></div>
+    </div>
+  </section>
+
+  <section class="sec wrap" id="zakres">
+    <div class="sec-head rv">
+      <h2 class="h2">Sześć dźwigni.<br>Jeden <span class="accent">wspólny wskaźnik</span>.</h2>
+      <span class="sec-idx">01 / ZAKRES</span>
+    </div>
+    <div class="seg-grid rv">
+      <a class="seg" href="#/uslugi" data-scroll="sv-performance">
+        <span class="seg-bar"></span><span class="seg-n">01</span>
+        <h3>Performance marketing</h3>
+        <p>Google, Meta i TikTok prowadzone jak jeden system, a nie trzy osobne panele. Budżet płynie tam, gdzie jest realna marża.</p>
+        <div class="seg-tags"><span class="tag">Google Ads</span><span class="tag">Meta Ads</span><span class="tag">TikTok</span></div>
+        <span class="seg-more">Zobacz zakres →</span>
+      </a>
+      <a class="seg" href="#/uslugi" data-scroll="sv-www">
+        <span class="seg-bar"></span><span class="seg-n">02</span>
+        <h3>Strony internetowe</h3>
+        <p>Szybkie strony i sklepy pisane pod konwersję i Core Web Vitals. Bez ciężkich page builderów, które kosztują sekundę ładowania.</p>
+        <div class="seg-tags"><span class="tag">Next.js</span><span class="tag">Headless</span><span class="tag">CRO</span></div>
+        <span class="seg-more">Zobacz zakres →</span>
+      </a>
+      <a class="seg" href="#/uslugi" data-scroll="sv-seo">
+        <span class="seg-bar"></span><span class="seg-n">03</span>
+        <h3>SEO i widoczność w AI</h3>
+        <p>Techniczne SEO, treści i architektura informacji — dziś także pod odpowiedzi AI. Walczymy o cytowanie, nie o dziesiąte miejsce.</p>
+        <div class="seg-tags"><span class="tag">SEO tech</span><span class="tag">Content</span><span class="tag">AI Overviews</span></div>
+        <span class="seg-more">Zobacz zakres →</span>
+      </a>
+      <a class="seg" href="#/uslugi" data-scroll="sv-automatyzacja">
+        <span class="seg-bar"></span><span class="seg-n">04</span>
+        <h3>Automatyzacja procesów</h3>
+        <p>Lead trafia do CRM, handlowiec dostaje powiadomienie, klient dostaje sekwencję — bez człowieka klikającego w arkusz.</p>
+        <div class="seg-tags"><span class="tag">n8n</span><span class="tag">Make</span><span class="tag">CRM</span></div>
+        <span class="seg-more">Zobacz zakres →</span>
+      </a>
+      <a class="seg" href="#/uslugi" data-scroll="sv-ai">
+        <span class="seg-bar"></span><span class="seg-n">05</span>
+        <h3>Wdrożenia AI</h3>
+        <p>Modele wpięte w Twoje dane i procesy: opisy produktów, kwalifikacja leadów, analiza kampanii. Z pomiarem oszczędności, nie z hasłem „AI".</p>
+        <div class="seg-tags"><span class="tag">LLM</span><span class="tag">RAG</span><span class="tag">Agenci</span></div>
+        <span class="seg-more">Zobacz zakres →</span>
+      </a>
+      <a class="seg" href="#/uslugi" data-scroll="sv-social">
+        <span class="seg-bar"></span><span class="seg-n">06</span>
+        <h3>Social media</h3>
+        <p>Produkcja kreacji dla algorytmu: dużo wariantów, szybka rotacja hooków, wnioski wracające prosto do kampanii płatnych.</p>
+        <div class="seg-tags"><span class="tag">Strategia</span><span class="tag">Kreacje</span><span class="tag">UGC</span></div>
+        <span class="seg-more">Zobacz zakres →</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- droga współpracy: pionowy zygzak, linia z kropek rysowana scrollem -->
+  <section class="pz" id="proces">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <h2 class="h2">Droga współpracy.<br>Sześć kroków, <span class="accent">zero mgły</span>.</h2>
+        <span class="sec-idx"><span id="pzProg">01</span> / 06</span>
+      </div>
+
+      <div class="pz-track" id="pzTrack">
+        <svg class="pz-svg" id="pzSvg" aria-hidden="true" preserveAspectRatio="none">
+          <defs>
+            <clipPath id="pzClip"><rect id="pzClipRect" x="0" y="0" width="4000" height="0"></rect></clipPath>
+          </defs>
+          <polyline id="pzBase" fill="none" stroke="#3d3d3d" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="0.1 11"></polyline>
+          <g clip-path="url(#pzClip)">
+            <polyline id="pzHalo" fill="none" stroke="rgba(197,255,74,.22)" stroke-width="9" stroke-linecap="round" stroke-dasharray="0.1 11"></polyline>
+            <polyline id="pzFill" fill="none" stroke="#c5ff4a" stroke-width="3" stroke-linecap="round" stroke-dasharray="0.1 11"></polyline>
+          </g>
+        </svg>
+
+        <div class="pz-steps" id="pzSteps">
+          <div class="pz-step" data-i="0">
+            <article class="pz-card">
+              <span class="pz-num">KROK 01</span>
+              <p class="pz-meta">dzień 0 · 30 minut</p>
+              <h3>Kontakt</h3>
+              <p>Rozmowa bez prezentacji. Pytamy o marże, sezonowość, pojemność produkcji i o to, co już nie zadziałało. Jeśli nie jesteśmy właściwym partnerem — mówimy to na tej rozmowie, a nie po trzech miesiącach umowy.</p>
+              <div class="pz-out"><ul>
+                <li><i>›</i> Cel biznesowy wyrażony liczbą, nie przymiotnikiem.</li>
+                <li><i>›</i> Lista dostępów potrzebnych do audytu.</li>
+              </ul></div>
+            </article>
+            <div class="pz-mid"><span class="pz-node"></span></div>
+          </div>
+
+          <div class="pz-step" data-i="1">
+            <div class="pz-mid"><span class="pz-node"></span></div>
+            <article class="pz-card">
+              <span class="pz-num">KROK 02</span>
+              <p class="pz-meta">48 godzin</p>
+              <h3>Audyt</h3>
+              <p>Wchodzimy w konta reklamowe, analitykę, stronę i dane sprzedażowe. Sprawdzamy, czy pomiar w ogóle mówi prawdę — bo zwykle to tu leży pierwszy problem. Wynikiem jest lista znalezisk uszeregowana według pieniędzy, nie według trudności.</p>
+              <div class="pz-out"><ul>
+                <li><i>›</i> Raport znalezisk z oszacowanym wpływem finansowym.</li>
+                <li><i>›</i> Weryfikacja pomiaru: zdarzenia, zgody, duplikaty konwersji.</li>
+              </ul></div>
+            </article>
+          </div>
+
+          <div class="pz-step" data-i="2">
+            <article class="pz-card">
+              <span class="pz-num">KROK 03</span>
+              <p class="pz-meta">tydzień 1–2</p>
+              <h3>Strategia</h3>
+              <p>Zamieniamy znaleziska w plan: kanały, budżety, komunikaty, kolejność wdrożeń i progi decyzyjne. Każda hipoteza ma spodziewany efekt i sposób pomiaru, więc po fakcie da się uczciwie powiedzieć, czy zadziałała.</p>
+              <div class="pz-out"><ul>
+                <li><i>›</i> Plan na 90 dni z podziałem budżetu i odpowiedzialnościami.</li>
+                <li><i>›</i> Progi: co uznajemy za sukces, a co za stop.</li>
+              </ul></div>
+            </article>
+            <div class="pz-mid"><span class="pz-node"></span></div>
+          </div>
+
+          <div class="pz-step" data-i="3">
+            <div class="pz-mid"><span class="pz-node"></span></div>
+            <article class="pz-card">
+              <span class="pz-num">KROK 04</span>
+              <p class="pz-meta">tydzień 2–6</p>
+              <h3>Wdrożenie</h3>
+              <p>Budujemy: kampanie, strony docelowe, kreacje, automatyzacje i pomiar serwerowy. Pracujemy na wspólnej tablicy zadań, więc w każdej chwili widzisz, co jest w toku i co czeka na Twoją decyzję. Bez etapu „prosimy o cierpliwość”.</p>
+              <div class="pz-out"><ul>
+                <li><i>›</i> Kampanie i strony podpięte pod poprawny pomiar.</li>
+                <li><i>›</i> Dashboard startowy z linią bazową do porównań.</li>
+              </ul></div>
+            </article>
+          </div>
+
+          <div class="pz-step" data-i="4">
+            <article class="pz-card">
+              <span class="pz-num">KROK 05</span>
+              <p class="pz-meta">cykl 14-dniowy</p>
+              <h3>Optymalizacja</h3>
+              <p>Tu dzieje się większość pracy. Testujemy kreacje, strony, struktury kampanii i grupy odbiorców — seriami, nie pojedynczo. Wyłączamy to, co nie zarabia, nawet jeśli komuś się podoba. Raz na kwartał sprawdzamy przyrostowość.</p>
+              <div class="pz-out"><ul>
+                <li><i>›</i> Rejestr testów: hipoteza, wynik, decyzja.</li>
+                <li><i>›</i> Stabilny koszt pozyskania przy rosnącym wolumenie.</li>
+              </ul></div>
+            </article>
+            <div class="pz-mid"><span class="pz-node"></span></div>
+          </div>
+
+          <div class="pz-step" data-i="5">
+            <div class="pz-mid"><span class="pz-node"></span></div>
+            <article class="pz-card">
+              <span class="pz-num">KROK 06</span>
+              <p class="pz-meta">kwartał 2 i dalej</p>
+              <h3>Skalowanie</h3>
+              <p>Kiedy jednostkowa ekonomia się spina, dokładamy paliwo: nowe rynki, nowe kanały, wyższe budżety i automatyzacje, które utrzymują jakość obsługi przy większym wolumenie. Skalujemy tylko to, co przeszło etap dowodu.</p>
+              <div class="pz-out"><ul>
+                <li><i>›</i> Plan wejścia na kolejne rynki lub kanały.</li>
+                <li><i>›</i> Prognoza budżetu i marży przy wyższym wolumenie.</li>
+              </ul></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="ct sec" id="kontakt-landing">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <h2 class="h2">Napisz do nas.<br>Odpiszemy <span class="accent">konkretem</span>.</h2>
+        <span class="sec-idx">04 / KONTAKT</span>
+      </div>
+      <div class="ct-grid">
+        <div class="ct-side rv">
+          <p>Wypełnij formularz albo napisz bezpośrednio na maila. Odpowiadamy w ciągu jednego dnia roboczego — zwykle pytaniami, bo pierwsza oferta bez znajomości Twoich liczb byłaby zgadywanką.</p>
+          <a class="ct-mail" href="mailto:biuro@kliqa.pl">biuro@kliqa.pl <span class="ar">↗</span></a>
+          <div class="ct-facts">
+            <div class="ct-fact"><i>01</i><span>Odpowiedź w 1 dzień roboczy, od człowieka z zespołu prowadzącego projekt.</span></div>
+            <div class="ct-fact"><i>02</i><span>Bezpłatny przegląd konta i pomiaru przed jakąkolwiek umową.</span></div>
+            <div class="ct-fact"><i>03</i><span>Umowy bez sztywnego okresu wypowiedzenia liczonego w kwartałach.</span></div>
+          </div>
+          <p style="margin-top:26px"><a class="btn btn-line" href="#/kontakt">Pełne dane kontaktowe <span class="ar">→</span></a></p>
+        </div>
+        <div class="rv" data-form-host></div>
+      </div>
+    </div>
+  </section>
+</div>

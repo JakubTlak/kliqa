@@ -1,0 +1,869 @@
+<script>
+(function(){
+'use strict';
+var K = window.KLIQA, clamp = K.clamp, REDUCED = K.REDUCED;
+var esc = function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+
+/* ============================================================ 1. DROGA WSPÓŁPRACY (zygzak) */
+(function(){
+  var track = document.getElementById('pzTrack');
+  if(!track) return;
+  var svg = document.getElementById('pzSvg');
+  var base = document.getElementById('pzBase'), fill = document.getElementById('pzFill');
+  var clipRect = document.getElementById('pzClipRect');
+  var steps = Array.prototype.slice.call(track.querySelectorAll('.pz-step'));
+  var prog = document.getElementById('pzProg');
+  var pts = [], trackH = 0, active = -1;
+
+  function measure(){
+    var tr = track.getBoundingClientRect();
+    trackH = tr.height;
+    svg.setAttribute('viewBox', '0 0 ' + Math.round(tr.width) + ' ' + Math.round(tr.height));
+    svg.setAttribute('width', Math.round(tr.width));
+    svg.setAttribute('height', Math.round(tr.height));
+    clipRect.setAttribute('width', Math.round(tr.width) + 40);
+    pts = steps.map(function(st){
+      var n = st.querySelector('.pz-node').getBoundingClientRect();
+      return [ (n.left + n.width/2 - tr.left), (n.top + n.height/2 - tr.top) ];
+    });
+    // Zygzak zaczyna się nad pierwszym węzłem i kończy pod ostatnim.
+    var full = [[pts[0][0], 0]].concat(pts).concat([[pts[pts.length-1][0], tr.height]]);
+    var s = full.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+    base.setAttribute('points', s);
+    fill.setAttribute('points', s);
+  }
+  function update(){
+    if(track.offsetParent === null) return;
+    if(!pts.length || Math.abs(track.getBoundingClientRect().height - trackH) > 2) measure();
+    var tr = track.getBoundingClientRect();
+    var line = window.innerHeight * 0.58;              // linia „teraz” w kadrze
+    var y = clamp(line - tr.top, 0, tr.height);
+    clipRect.setAttribute('height', y.toFixed(1));
+    var idx = -1;
+    for(var i=0;i<pts.length;i++) if(pts[i][1] <= y) idx = i;
+    if(idx !== active){
+      active = idx;
+      steps.forEach(function(st,k){
+        st.classList.toggle('on', k === idx);
+        st.classList.toggle('past', k < idx);
+      });
+      if(prog) prog.textContent = ('0'+Math.max(1, idx+1)).slice(-2);
+    }
+  }
+  K.onScrollAdd(update);
+  window.addEventListener('resize', function(){ pts = []; update(); });
+  if(window.ResizeObserver) new ResizeObserver(function(){ pts = []; update(); }).observe(track);
+  setTimeout(update, 60);
+  setTimeout(update, 600);
+})();
+
+/* ============================================================ 2. WIDGETY W USŁUGACH */
+
+/* --- 2a. alokacja budżetu --- */
+(function(){
+  var w = document.querySelector('[data-w="perf"]');
+  if(!w) return;
+  var BUD = 30000;
+  var CH = {
+    google: { k: 3.2, a: 0.78, rev: 240 },
+    meta:   { k: 3.6, a: 0.70, rev: 210 },
+    tiktok: { k: 3.9, a: 0.62, rev: 180 }
+  };
+  var inputs = Array.prototype.slice.call(w.querySelectorAll('input[type=range]'));
+  var chart = w.querySelector('[data-chart]');
+  var bars = [];
+  for(var i=0;i<12;i++){
+    var col = document.createElement('div');
+    col.className = 'w-col';
+    var bar = document.createElement('div');
+    bar.className = 'bar';
+    col.appendChild(bar); chart.appendChild(col);
+    bars.push(bar);
+  }
+  function normalize(changed){
+    var total = inputs.reduce(function(s,i){ return s + (+i.value); }, 0);
+    if(total === 0){ changed.value = 100; return; }
+    var rest = inputs.filter(function(i){ return i !== changed; });
+    var restSum = rest.reduce(function(s,i){ return s + (+i.value); }, 0);
+    var left = 100 - (+changed.value);
+    rest.forEach(function(i){
+      i.value = restSum > 0 ? Math.round(left * (+i.value) / restSum) : Math.round(left / rest.length);
+    });
+    var diff = 100 - inputs.reduce(function(s,i){ return s + (+i.value); }, 0);
+    if(diff !== 0 && rest.length) rest[0].value = clamp(+rest[0].value + diff, 0, 100);
+  }
+  function compute(){
+    var conv = 0, rev = 0;
+    inputs.forEach(function(i){
+      var c = CH[i.getAttribute('data-ch')];
+      var b = BUD * (+i.value) / 100;
+      var n = b > 0 ? c.k * Math.pow(b/100, c.a) : 0;
+      conv += n; rev += n * c.rev;
+      w.querySelector('[data-v="'+i.getAttribute('data-ch')+'"]').textContent = i.value + '%';
+    });
+    var cac = conv > 0 ? BUD/conv : 0;
+    w.querySelector('[data-k="conv"]').textContent = Math.round(conv).toLocaleString('pl-PL');
+    w.querySelector('[data-k="cac"]').textContent = Math.round(cac) + ' zł';
+    var roasEl = w.querySelector('[data-k="roas"]');
+    var roas = rev/BUD;
+    roasEl.textContent = roas.toFixed(2) + '×';
+    roasEl.className = roas >= 2.2 ? 'good' : (roas >= 1.6 ? '' : 'warn');
+    // Nauka systemu: pierwsze tygodnie słabsze, potem plateau. Stały wzorzec, nie losowy szum.
+    var shape = [0.58,0.66,0.74,0.8,0.86,0.9,0.94,0.97,1,1.02,1.03,1.05];
+    var peak = conv/12 * 1.05;
+    bars.forEach(function(b,idx){
+      var v = conv/12 * shape[idx];
+      b.style.height = clamp(v/peak*100, 3, 100).toFixed(1) + '%';
+      b.classList.toggle('hi', idx >= 8);
+    });
+  }
+  inputs.forEach(function(i){
+    i.addEventListener('input', function(){ normalize(i); compute(); });
+  });
+  compute();
+})();
+
+/* --- 2b. Core Web Vitals --- */
+(function(){
+  var w = document.querySelector('[data-w="vitals"]');
+  if(!w) return;
+  var FIX = {
+    builder:{lcp:1.5,inp:60,cls:0.08,kb:1200},
+    img:{lcp:0.7,inp:0,cls:0.09,kb:700},
+    js:{lcp:0.5,inp:150,cls:0.04,kb:480},
+    font:{lcp:0.3,inp:20,cls:0.06,kb:120},
+    sgtm:{lcp:0.2,inp:60,cls:0,kb:180}
+  };
+  var chips = Array.prototype.slice.call(w.querySelectorAll('[data-fix]'));
+  var on = {};
+  function set(el, val, unit, good, warn, max, fillSel){
+    w.querySelector('[data-g="'+el+'"]').textContent = val.toFixed(el==='cls'?2:(el==='lcp'?1:0)) + unit;
+    var cls = val <= good ? 'good' : (val <= warn ? 'warn' : 'bad');
+    w.querySelector('[data-g="'+el+'"]').className = cls;
+    var f = w.querySelector('[data-f="'+fillSel+'"]');
+    f.style.width = clamp(val/max*100, 2, 100).toFixed(1) + '%';
+    f.className = 'w-fill' + (cls === 'good' ? '' : ' ' + cls);
+    return cls;
+  }
+  function compute(){
+    var lcp = 4.6, inp = 420, cls = 0.29, kb = 3200;
+    Object.keys(on).forEach(function(k){
+      if(!on[k]) return;
+      lcp -= FIX[k].lcp; inp -= FIX[k].inp; cls -= FIX[k].cls; kb -= FIX[k].kb;
+    });
+    lcp = Math.max(1.1, lcp); inp = Math.max(90, inp); cls = Math.max(0.01, cls); kb = Math.max(420, kb);
+    var c1 = set('lcp', lcp, ' s', 2.5, 4.0, 4.0, 'lcp');
+    var c2 = set('inp', inp, ' ms', 200, 500, 400, 'inp');
+    var c3 = set('cls', cls, '', 0.1, 0.25, 0.25, 'cls');
+    var cr = 1.1 + Math.max(0, 4.6-lcp)*0.18 + (inp<=200?0.15:0) + (cls<=0.1?0.12:0);
+    w.querySelector('[data-g="kb"]').textContent = Math.round(kb) + ' KB';
+    var crEl = w.querySelector('[data-g="cr"]');
+    crEl.textContent = cr.toFixed(2) + '%';
+    crEl.className = cr >= 1.7 ? 'good' : '';
+    var good = [c1,c2,c3].filter(function(c){ return c==='good'; }).length;
+    var v = w.querySelector('[data-g="verdict"]');
+    v.textContent = good === 3 ? '3/3' : good + '/3';
+    v.className = good === 3 ? 'good' : (good >= 2 ? 'warn' : 'bad');
+  }
+  chips.forEach(function(ch){
+    ch.addEventListener('click', function(){
+      var k = ch.getAttribute('data-fix');
+      on[k] = !on[k];
+      ch.classList.toggle('on', on[k]);
+      compute();
+    });
+  });
+  compute();
+})();
+
+/* --- 2c. wyniki wyszukiwania --- */
+(function(){
+  var w = document.querySelector('[data-w="serp"]');
+  if(!w) return;
+  var list = w.querySelector('[data-serp-list]');
+  var chart = w.querySelector('[data-serp-chart]');
+  var ROWS = [
+    ['twojsklep.pl › buty-trekkingowe','Buty trekkingowe — jak wybrać rozmiar','Poradnik: dopasowanie, szerokość kopyta, membrana i realne przebiegi.'],
+    ['konkurencja.pl › poradnik','Ranking butów trekkingowych 2026','Zestawienie 12 modeli z testami w terenie i cenami.'],
+    ['forum.pl › watek-3421','Jakie buty w Tatry jesienią?','Wątek na forum, 84 odpowiedzi.']
+  ];
+  var bars = [];
+  ['a','b'].forEach(function(){
+    var col = document.createElement('div'); col.className = 'w-col';
+    var bar = document.createElement('div'); bar.className = 'bar';
+    col.appendChild(bar); chart.appendChild(col); bars.push(bar);
+  });
+  function draw(ai){
+    var html = '';
+    if(ai){
+      html += '<div class="w-serp-row ai"><span class="u">Odpowiedź AI · wygenerowana</span>' +
+              '<div class="t">Do Tatr jesienią sprawdzą się buty za kostkę z membraną…</div>' +
+              '<div class="d">Model streszcza trzy źródła i podaje odpowiedź na miejscu. Użytkownik nie musi nigdzie klikać.</div></div>';
+    }
+    ROWS.forEach(function(r,i){
+      html += '<div class="w-serp-row'+(ai && i<2 ? ' dim' : '')+'"><span class="u">'+esc(r[0])+'</span>' +
+              '<div class="t">'+esc(r[1])+'</div><div class="d">'+esc(r[2])+'</div></div>';
+    });
+    list.innerHTML = html;
+    var ctr = ai ? 0.64 : 1.41;
+    bars[0].style.height = '100%';
+    bars[0].classList.toggle('hi', !ai);
+    bars[1].style.height = (0.64/1.41*100).toFixed(0) + '%';
+    bars[1].classList.toggle('hi', ai);
+    w.querySelector('[data-s="ctr"]').textContent = ctr.toFixed(2) + '%';
+    w.querySelector('[data-s="ctr"]').className = ai ? 'warn' : 'good';
+    w.querySelector('[data-s="visits"]').textContent = Math.round(ctr*100);
+    w.querySelector('[data-s="trans"]').textContent = ai ? '−10%' : '—';
+  }
+  w.querySelectorAll('[data-serp]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      w.querySelectorAll('[data-serp]').forEach(function(b){ b.classList.remove('on'); });
+      btn.classList.add('on');
+      draw(btn.getAttribute('data-serp') === 'on');
+    });
+  });
+  draw(false);
+})();
+
+/* --- 2d. scenariusz automatyzacji --- */
+(function(){
+  var w = document.querySelector('[data-w="flow"]');
+  if(!w) return;
+  var host = w.querySelector('[data-flow]');
+  var status = w.querySelector('[data-flow-status]');
+  var runBtn = w.querySelector('[data-run]');
+  var STEPS = [
+    ['01','Formularz','lead trafia z reklamy'],
+    ['02','Walidacja','e-mail, telefon, duplikat'],
+    ['03','Wzbogacenie','branża, wielkość firmy'],
+    ['04','CRM','karta + źródło + budżet'],
+    ['05','Handlowiec','powiadomienie na Slacku'],
+    ['06','Sekwencja','potwierdzenie i materiały']
+  ];
+  var nodes = [];
+  STEPS.forEach(function(s,i){
+    if(i>0){ var ar = document.createElement('div'); ar.className='w-arrow'; ar.textContent='›'; host.appendChild(ar); }
+    var n = document.createElement('div');
+    n.className = 'w-node';
+    n.innerHTML = '<span class="n">'+s[0]+' · '+esc(s[1])+'</span><span class="v">'+esc(s[2])+'</span>';
+    host.appendChild(n); nodes.push(n);
+  });
+  var leads = 0, busy = false;
+  function set(k,v){ w.querySelector('[data-fl="'+k+'"]').textContent = v; }
+  runBtn.addEventListener('click', function(){
+    if(busy) return;
+    busy = true; runBtn.disabled = true;
+    var i = 0;
+    status.textContent = 'Lead w obiegu…';
+    (function step(){
+      nodes.forEach(function(n,k){ n.classList.toggle('hot', k === i); });
+      var arrows = host.querySelectorAll('.w-arrow');
+      arrows.forEach(function(a,k){ a.classList.toggle('hot', k < i); });
+      i++;
+      if(i <= nodes.length){ setTimeout(step, REDUCED ? 10 : 340); return; }
+      nodes.forEach(function(n){ n.classList.remove('hot'); });
+      leads++;
+      set('leads', leads);
+      set('manual', (leads*9) + ' min');
+      set('auto', (leads*12) + ' s');
+      status.textContent = 'Gotowe · handlowiec ma powiadomienie';
+      busy = false; runBtn.disabled = false;
+    })();
+  });
+})();
+
+/* --- 2e. generator opisów --- */
+(function(){
+  var w = document.querySelector('[data-w="ai"]');
+  if(!w) return;
+  var PRODUCTS = [
+    { id:'fotel', name:'Fotel ERGO-2', attrs:['regulacja lędźwiowa w 4 osiach','oparcie z siatki','testowany do 150 kg','8 lat gwarancji'], cat:'meble biurowe' },
+    { id:'rower', name:'Rower City 7', attrs:['rama aluminiowa 14,2 kg','7 przełożeń Shimano','hamulce tarczowe','bagażnik do 25 kg'], cat:'rowery miejskie' },
+    { id:'lampa', name:'Lampa Nordic LED', attrs:['2700–5000 K','ściemniacz dotykowy','klosz z recyklingu','12 W, 1100 lm'], cat:'oświetlenie' }
+  ];
+  var TONE = {
+    rzeczowy: { open: 'Konkret na start:', close: 'Bez marketingowej waty — liczby są w tabeli specyfikacji.' },
+    premium:  { open: 'Zaprojektowany dla tych, którzy nie lubią kompromisów:', close: 'Detale, które widać dopiero po miesiącu używania.' },
+    techniczny:{ open: 'Parametry, które faktycznie mają znaczenie:', close: 'Pełna specyfikacja i rysunek techniczny w karcie produktu.' }
+  };
+  var pHost = w.querySelector('[data-ai-products]');
+  var out = w.querySelector('[data-ai-out]');
+  var current = PRODUCTS[0], tone = 'rzeczowy', typing = null;
+  PRODUCTS.forEach(function(p,i){
+    var b = document.createElement('button');
+    b.className = 'w-chip' + (i===0 ? ' on' : '');
+    b.textContent = p.name;
+    b.addEventListener('click', function(){
+      current = p;
+      pHost.querySelectorAll('.w-chip').forEach(function(c){ c.classList.remove('on'); });
+      b.classList.add('on');
+    });
+    pHost.appendChild(b);
+  });
+  w.querySelectorAll('[data-tone]').forEach(function(b){
+    b.addEventListener('click', function(){
+      tone = b.getAttribute('data-tone');
+      w.querySelectorAll('[data-tone]').forEach(function(c){ c.classList.remove('on'); });
+      b.classList.add('on');
+    });
+  });
+  w.querySelector('[data-ai-run]').addEventListener('click', function(){
+    var t = TONE[tone];
+    var text = current.name + ' — ' + current.cat + '.\n\n' + t.open + ' ' +
+      current.attrs.slice(0,2).join(', ') + '. ' +
+      'Pozostałe cechy: ' + current.attrs.slice(2).join(' · ') + '.\n\n' + t.close;
+    clearInterval(typing);
+    if(REDUCED){ out.textContent = text; }
+    else {
+      out.textContent = '';
+      var i = 0;
+      typing = setInterval(function(){
+        out.textContent = text.slice(0, i += 3);
+        if(i >= text.length) clearInterval(typing);
+      }, 12);
+    }
+    w.querySelector('[data-ai="time"]').textContent = '1,4 s';
+    w.querySelector('[data-ai="cost"]').textContent = '≈ 38 zł';
+    w.querySelector('[data-ai="manual"]').textContent = '≈ 210 h';
+  });
+})();
+
+/* --- 2f. test hooków --- */
+(function(){
+  var w = document.querySelector('[data-w="hooks"]');
+  if(!w) return;
+  var HOOKS = [
+    ['„Kupiłem to zamiast droższego modelu. Oto co się stało."', 'historia', 42],
+    ['3 błędy, przez które płacisz 30% więcej', 'liczba', 38],
+    ['Rozkręcamy to na stole — bez montażu', 'demo', 47],
+    ['Klientka pyta: czy warto dopłacić?', 'pytanie', 33],
+    ['Nagranie z magazynu o 6 rano', 'ugc', 44],
+    ['Tanio vs. drogo — ten sam test', 'kontrast', 40]
+  ];
+  var host = w.querySelector('[data-hooks]');
+  var chart = w.querySelector('[data-hook-chart]');
+  var axis = w.querySelector('[data-hook-axis]');
+  var picked = [0,2,4];
+  HOOKS.forEach(function(h,i){
+    var b = document.createElement('button');
+    b.className = 'w-hook' + (picked.indexOf(i) >= 0 ? ' on' : '');
+    b.innerHTML = '<span class="txt">'+esc(h[0])+'</span><span class="score">'+h[2]+'%</span>';
+    b.addEventListener('click', function(){
+      var at = picked.indexOf(i);
+      if(at >= 0) picked.splice(at,1); else picked.push(i);
+      b.classList.toggle('on', at < 0);
+      update();
+    });
+    host.appendChild(b);
+  });
+  function update(){
+    chart.innerHTML = ''; axis.innerHTML = '';
+    var sel = picked.slice().sort(function(a,b){ return a-b; });
+    var max = 50;
+    sel.forEach(function(i){
+      var col = document.createElement('div'); col.className='w-col';
+      var bar = document.createElement('div'); bar.className='bar';
+      bar.style.height = (HOOKS[i][2]/max*100).toFixed(0)+'%';
+      if(HOOKS[i][2] >= 44) bar.classList.add('hi');
+      col.appendChild(bar); chart.appendChild(col);
+      var sp = document.createElement('span'); sp.textContent = 'H'+(i+1); axis.appendChild(sp);
+    });
+    var types = {};
+    sel.forEach(function(i){ types[HOOKS[i][1]] = 1; });
+    var uniq = Object.keys(types).length;
+    w.querySelector('[data-h="count"]').textContent = sel.length;
+    var dv = w.querySelector('[data-h="div"]');
+    var ratio = sel.length ? uniq/sel.length : 0;
+    dv.textContent = sel.length < 3 ? 'za mało' : (ratio > 0.85 ? 'wysoka' : (ratio > 0.6 ? 'średnia' : 'niska'));
+    dv.className = sel.length < 3 ? 'bad' : (ratio > 0.85 ? 'good' : (ratio > 0.6 ? 'warn' : 'bad'));
+    var best = sel.slice().sort(function(a,b){ return HOOKS[b][2]-HOOKS[a][2]; })[0];
+    w.querySelector('[data-h="best"]').textContent = best === undefined ? '—' : ('H'+(best+1)+' · '+HOOKS[best][2]+'%');
+  }
+  update();
+})();
+
+/* ============================================================ 3. EDUKACJA */
+var EDU = [
+  {
+    slug:'google-ads-benchmarks-2026', cat:'paid', badge:'Płatne media', year:'2026',
+    title:'Google Ads Benchmarks 2026', source:'WordStream',
+    url:'https://www.wordstream.com/blog/2026-google-ads-benchmarks',
+    teaser:'Średni koszt kliknięcia w wyszukiwarce wzrósł o <b>12% rok do roku, do 2,96 USD</b> — najostrzejsza podwyżka od 2021 r. Rozpiętość między branżami jest ogromna, a licytacją rządzi dziś automat.',
+    lead:'Coroczne zestawienie kosztów w Google Ads na próbie kilkunastu tysięcy kont. Traktujemy je jak punkt odniesienia dla planów budżetowych — nie jako cel, do którego trzeba dobić.',
+    numbers:[['2,96 USD','średni CPC w sieci wyszukiwania (+12% r/r)'],['6,75 USD','najdroższa branża: usługi prawne'],['78%','udział wydatków sterowanych licytacją AI']],
+    sections:[
+      ['Co pokazują dane', [
+        'Cross-branżowy średni koszt kliknięcia w sieci wyszukiwania sięgnął 2,96 USD, wobec 2,64 USD rok wcześniej. To wzrost o 12% i najostrzejszy skok od 2021 roku. Skala podwyżki nie rozkłada się równo: usługi prawne przekraczają 6,75 USD za kliknięcie, podczas gdy e-commerce mieści się poniżej 1,20 USD.',
+        'Drugi wniosek jest strukturalny: zdecydowana większość budżetów przechodzi już przez licytację sterowaną automatem — Smart Bidding i Performance Max odpowiadają za większość wydatków w systemie. Ręczne ustawianie stawek przestało być realną alternatywą dla kont o sensownym wolumenie.'
+      ]],
+      ['Dlaczego stawki rosną', [
+        'Powodów jest kilka i żaden nie zniknie w przyszłym kwartale. Po pierwsze, odpowiedzi generatywne zabierają część ruchu organicznego, więc więcej firm konkuruje o płatne miejsca. Po drugie, automatyczne strategie licytacji podbijają stawki tam, gdzie widzą prawdopodobieństwo konwersji — a widzą je u wszystkich naraz. Po trzecie, rośnie udział formatów, w których kliknięcie jest droższe, bo prowadzi do bardziej zaawansowanego etapu decyzji.',
+        'Konsekwencja praktyczna jest prosta: jeśli planujesz budżet na rok bez założonej inflacji CPC, planujesz spadek wolumenu przy tym samym wydatku.'
+      ]],
+      ['Co z tym robimy w praktyce', [
+        'Zakładamy w planach 10–15% rocznego wzrostu kosztu kliknięcia jako scenariusz bazowy i sprawdzamy, przy jakim CPC jednostkowa ekonomia przestaje się spinać. Ta liczba — a nie średnia branżowa — jest naszym progiem decyzyjnym.',
+        'Równolegle pracujemy nad tym, co obniża efektywny koszt pozyskania niezależnie od stawki: jakość sygnałów konwersji, wykluczenia, dopasowanie strony docelowej i marża produktów, które w ogóle promujemy.'
+      ]]
+    ],
+    takeaways:[
+      'Wpisz inflację CPC w plan roczny, zamiast tłumaczyć ją co kwartał.',
+      'Porównuj się do własnego trendu, nie do średniej z branży — rozrzut jest ogromny.',
+      'Przy automatycznej licytacji dźwignią jest jakość danych konwersji, nie ręczna stawka.'
+    ]
+  },
+  {
+    slug:'paid-social-andromeda', cat:'paid', badge:'Płatne media', year:'2026',
+    title:'Paid Social Playbook — era Andromedy', source:'Logical Position',
+    url:'https://www.logicalposition.com/blog/the-2026-paid-social-playbook',
+    teaser:'Po zmianie silnika rekomendacji Meta liczy się różnorodność kreacji, nie liczba zestawów reklam. Jeden zestaw z <b>25 różnymi kreacjami pobił układ 5×5 o 17% konwersji</b> przy 16% niższym koszcie.',
+    lead:'Przewodnik po tym, jak zmiana systemu rekomendacji Meta przestawiła zasady prowadzenia kampanii: z segmentacji odbiorców na różnorodność materiałów.',
+    numbers:[['+17%','konwersji przy jednym zestawie z 25 kreacjami vs 5×5'],['−16%','koszt w tym samym teście'],['15–25','liczba różnych kreacji na zestaw jako punkt wyjścia']],
+    sections:[
+      ['Co się właściwie zmieniło', [
+        'Nowa architektura systemu rekomendacji lepiej dobiera pojedynczą kreację do pojedynczego użytkownika, ale potrzebuje do tego materiału: im więcej naprawdę różnych kandydatów ma w jednym miejscu, tym trafniejszy wybór. Dzielenie budżetu na wiele wąskich zestawów odbiorców odbiera systemowi to pole manewru i rozdrabnia dane.',
+        'W teście opisanym w playbooku układ z jednym zestawem i 25 kreacjami pobił klasyczne pięć zestawów po pięć kreacji o 17% konwersji przy 16% niższym koszcie. To nie jest argument za lenistwem w targetowaniu — to argument za przeniesieniem wysiłku z segmentacji na produkcję.'
+      ]],
+      ['Co liczy się jako „różna kreacja”', [
+        'Inny hook, inny format, inna obietnica. Ten sam materiał z nowym nagłówkiem albo z przesuniętym logo nie jest nowym wariantem — algorytm widzi to jako duplikat i traci czas na rozróżnianie rzeczy, które niczym się nie różnią.',
+        'Dobra bateria kreacji miesza formaty (wideo krótkie i dłuższe, karuzele, statyki, materiały w stylu UGC) i kąty komunikacji (problem, dowód, demonstracja, porównanie, historia klienta). Dopiero taki zestaw daje systemowi realny wybór.'
+      ]],
+      ['Ostrożnie z raportowanym wynikiem', [
+        'Playbook przypomina też o drugiej stronie automatyzacji: kampanie w trybie Advantage+ potrafią raportować wyniki wyższe niż ich rzeczywisty wkład przyrostowy. Dlatego przy większych budżetach nie kończymy na panelu — raz na kwartał robimy test z grupą kontrolną albo model mieszany, żeby zobaczyć, ile sprzedaży wydarzyłoby się i tak.'
+      ]]
+    ],
+    takeaways:[
+      'Konsoliduj zestawy i przenoś wysiłek na produkcję różnych kreacji.',
+      'Licz warianty według hooka i formatu, nie według liczby plików.',
+      'Weryfikuj przyrostowość testem, zanim zwiększysz budżet o rząd wielkości.'
+    ]
+  },
+  {
+    slug:'tiktok-next-2026', cat:'paid', badge:'Social', year:'2026',
+    title:'TikTok Next 2026 — prognoza trendów', source:'TikTok for Business',
+    url:'https://ads.tiktok.com/business/en/next',
+    teaser:'Szósta edycja prognozy TikToka pod hasłem <b>„Irreplaceable Instinct”</b>: koniec biernej konsumpcji, przewagę zdobywają marki pokazujące proces i ludzi zamiast dopracowanej perfekcji.',
+    lead:'Coroczna prognoza platformy oparta na jej własnych danych o zachowaniach użytkowników. Czytamy ją jako wskazówkę produkcyjną: co nagrywać, a nie jaki filtr wybrać.',
+    numbers:[['3','sygnały trendów opisane w raporcie'],['6.','edycja prognozy dla marketerów'],['BTS','format, który w raporcie wygrywa z produkcją reklamową']],
+    sections:[
+      ['Motyw przewodni', [
+        'Hasło tegorocznej edycji — „Irreplaceable Instinct” — opisuje przesunięcie od biernego przewijania do aktywnego uczestnictwa. Autorzy raportu wskazują trzy sygnały: powrót do nieoczywistej, surowej autentyczności, ciekawość prowadzącą użytkowników w boczne odnogi tematów oraz zwrot z „ROI” w stronę emocjonalnego zwrotu z uwagi.',
+        'Dla marki oznacza to, że materiał wyglądający na reklamę startuje z gorszej pozycji niż materiał wyglądający na fragment czyjejś pracy.'
+      ]],
+      ['Co to zmienia w produkcji', [
+        'Zamiast jednej dopracowanej produkcji na kwartał — regularny strumień krótkich materiałów pokazujących proces: jak powstaje produkt, jak wygląda magazyn, jak zespół rozwiązuje reklamację. Koszt jednostkowy spada, liczba wariantów rośnie, a to właśnie liczba różnych wariantów decyduje dziś o wyniku także w kampaniach płatnych.',
+        'Praktyczna konsekwencja organizacyjna: ktoś w firmie musi mieć w zakresie obowiązków nagrywanie. Bez tego strumień materiałów wysycha po trzech tygodniach.'
+      ]],
+      ['Jak to wpiąć w kampanie', [
+        'Materiały organiczne traktujemy jak poligon: to, co zatrzymuje uwagę w pierwszych sekundach, przenosimy do kampanii płatnych jako Spark Ads. Dzięki temu reklama startuje z dowodem skuteczności, a nie z założeniem.'
+      ]]
+    ],
+    takeaways:[
+      'Planuj strumień surowych materiałów, nie pojedynczą produkcję.',
+      'Przypisz nagrywanie konkretnej osobie w firmie — inaczej proces zamiera.',
+      'Zwycięzców z organiku przenoś do płatnych jako Spark Ads.'
+    ]
+  },
+  {
+    slug:'ai-overviews-ctr', cat:'seo', badge:'SEO', year:'2025–26',
+    title:'AI Overviews a klikalność wyników', source:'Ahrefs',
+    url:'https://ahrefs.com/blog/ai-overviews-reduce-clicks-update',
+    teaser:'Na próbie setek tysięcy słów kluczowych obecność odpowiedzi AI oznacza <b>o 58% niższy CTR dla strony z pierwszej pozycji</b>. Uderzenie jest asymetryczne: najmocniej tracą zapytania informacyjne.',
+    lead:'Badanie klikalności wyników wyszukiwania w zależności od obecności wygenerowanej odpowiedzi nad listą linków. Jedno z niewielu, które porównuje te same zapytania w obu wariantach.',
+    numbers:[['−58%','CTR strony z pozycji 1, gdy pojawia się odpowiedź AI'],['1,41% → 0,64%','klikalność pierwszego wyniku w pierwotnej próbie'],['< 10%','strata na zapytaniach transakcyjnych']],
+    sections:[
+      ['Co dokładnie zmierzono', [
+        'Analiza objęła setki tysięcy zapytań i porównała klikalność strony zajmującej pierwszą pozycję w wynikach z odpowiedzią AI i bez niej. Klikalność spadła z 1,41% do 0,64%, czyli o około 58%. Późniejsze aktualizacje badania potwierdziły kierunek, a niezależne analizy innych zespołów pokazały spadki tego samego rzędu.',
+        'Kluczowy niuans: strata rozkłada się nierówno. Zapytania informacyjne — „jak”, „co to znaczy”, „czy warto” — tracą najwięcej, bo model odpowiada na nie w całości. Zapytania transakcyjne, gdzie użytkownik chce kupić, porównać ceny albo trafić do konkretnego sklepu, tracą poniżej 10%.'
+      ]],
+      ['Dlaczego to nie jest koniec SEO', [
+        'Ruch, który znika, w dużej mierze i tak nie konwertował. Znika za to bufor bezpieczeństwa: treść poradnikowa przestała być tanim źródłem dużych wolumenów, którymi łatwo było pokazać wzrost w raporcie.',
+        'Jednocześnie pojawia się nowa waluta: bycie źródłem cytowanym w odpowiedzi. To wymaga innej struktury tekstu — jasnych definicji, danych, fragmentów, które da się wyciąć i przytoczyć, oraz spójnego oznaczenia autorstwa i encji.'
+      ]],
+      ['Co robimy zamiast panikować', [
+        'Przenosimy oczekiwania ruchowe na zapytania z intencją zakupową i mierzymy kanał organiczny konwersjami, a nie sesjami. Do tego monitorujemy, czy marka pojawia się w odpowiedziach generatywnych — bo to jest miejsce, w którym dziś kończy się część ścieżki zakupowej.'
+      ]]
+    ],
+    takeaways:[
+      'Przestaw raportowanie SEO z sesji na konwersje i przychód.',
+      'Treści poradnikowe pisz pod cytowalność, nie pod wolumen wejść.',
+      'Priorytetem zostają zapytania transakcyjne — tam strata jest marginalna.'
+    ]
+  },
+  {
+    slug:'core-web-vitals', cat:'seo', badge:'WWW', year:'Google',
+    title:'Core Web Vitals — LCP, INP, CLS', source:'web.dev / Google',
+    url:'https://web.dev/articles/vitals',
+    teaser:'Oficjalne progi jakości strony: <b>LCP poniżej 2,5 s, INP poniżej 200 ms, CLS poniżej 0,1</b>. INP zastąpił FID i mierzy realną responsywność interfejsu.',
+    lead:'Dokumentacja metryk, którymi Google opisuje jakość doświadczenia na stronie. Dla nas to lista budżetów technicznych, a nie zbiór dobrych chęci.',
+    numbers:[['2,5 s','próg dobrego LCP — czas do największego elementu'],['200 ms','próg dobrego INP — reakcja na interakcję'],['0,1','próg dobrego CLS — przesunięcia układu']],
+    sections:[
+      ['Trzy metryki i co naprawdę mierzą', [
+        'LCP odpowiada na pytanie „kiedy użytkownik zobaczył treść, po którą przyszedł”. INP mierzy, ile czasu mija od interakcji — kliknięcia, dotknięcia, wpisania znaku — do momentu, w którym ekran faktycznie się odświeża. CLS opisuje, jak bardzo układ skacze pod palcem.',
+        'INP zastąpił wcześniejsze FID i jest znacznie surowszy: FID mierzył tylko opóźnienie pierwszej interakcji, INP patrzy na całą sesję. Strony, które wyglądały dobrze w starym mierniku, po zmianie zjechały do czerwonej strefy.'
+      ]],
+      ['Skąd biorą się złe wyniki', [
+        'W praktyce winowajcy powtarzają się: ciężkie motywy i page buildery generujące dziesiątki tysięcy linii CSS, obrazy bez określonych wymiarów i we własnych formatach sprzed dekady, skrypty firm trzecich ładowane synchronicznie oraz banery zgód wstawiane po renderze.',
+        'Ważne: liczą się dane z rzeczywistego ruchu, zbierane w oknie 28 dni, a nie wynik z jednego uruchomienia narzędzia na szybkim łączu.'
+      ]],
+      ['Plan naprawy, który działa', [
+        'Zaczynamy od pomiaru na realnym ruchu i od jednego pytania: który element jest największym elementem na ekranie. Potem po kolei: usunięcie zbędnych warstw abstrakcji, obrazy w nowoczesnych formatach z podanymi wymiarami, odchudzenie skryptów firm trzecich, rezerwacja miejsca na elementy dogrywane później.',
+        'Efekt sprawdzamy po 28 dniach na danych z pola, a nie po zrzucie ekranu z narzędzia.'
+      ]]
+    ],
+    takeaways:[
+      'Traktuj progi jako budżet techniczny przy każdej nowej funkcji strony.',
+      'Mierz na realnym ruchu, nie na jednorazowym teście z biura.',
+      'Największe zyski daje zwykle usunięcie warstw, nie dokładanie optymalizacji.'
+    ]
+  },
+  {
+    slug:'state-of-marketing-2026', cat:'ai', badge:'AI', year:'2026',
+    title:'State of Marketing 2026', source:'HubSpot',
+    url:'https://blog.hubspot.com/marketing/hubspot-blog-marketing-industry-trends-report',
+    teaser:'Badanie na ponad 1500 marketerach: <b>86,4% korzysta już z narzędzi AI</b>, a największym wyzwaniem pozostaje pomiar zwrotu z marketingu — wskazuje go 33% zespołów.',
+    lead:'Coroczny przegląd praktyk marketingowych na dużej próbie międzynarodowej. Najciekawsze jest w nim napięcie między tempem adopcji AI a stanem pomiaru.',
+    numbers:[['86,4%','marketerów korzysta z narzędzi AI (41% w 2024 r.)'],['33%','wskazuje pomiar ROI jako największe wyzwanie'],['49%','wskazuje krótkie wideo jako format o najwyższym zwrocie']],
+    sections:[
+      ['Adopcja przestała być pytaniem', [
+        'W ciągu dwóch lat korzystanie z narzędzi AI w marketingu urosło z 41% do 86,4% zespołów. Zdecydowana większość planuje używać ich przy tworzeniu treści. Pytanie „czy wdrażać” praktycznie zniknęło z rozmów — zostało pytanie „w którym miejscu procesu i z jaką kontrolą jakości”.',
+        'Warto zauważyć zmianę priorytetów: po raz pierwszy w historii badania budowanie świadomości marki wyprzedziło pozyskiwanie leadów jako cel numer jeden.'
+      ]],
+      ['Wąskim gardłem jest pomiar', [
+        'Jednocześnie największym problemem zespołów pozostaje udowodnienie zwrotu z marketingu — wskazuje go co trzeci badany, więcej niż nadążanie za zmianami platform czy samo pozyskiwanie leadów. To zestawienie jest wymowne: firmy przyspieszają produkcję treści, ale nie nadążają z odpowiedzią, które z nich zarabiają.',
+        'Nasze doświadczenie jest zgodne z tą diagnozą. W większości audytów problem nie leży w liczbie publikacji, tylko w tym, że nikt nie potrafi połączyć konkretnej kampanii z konkretnym przychodem.'
+      ]],
+      ['Co z tego wynika', [
+        'Jeśli masz wybrać jedną inwestycję na najbliższy kwartał, wybierz pomiar. AI zwiększy liczbę materiałów, ale bez wiarygodnej atrybucji zwiększy też liczbę materiałów, o których nie wiadomo, czy działają.'
+      ]]
+    ],
+    takeaways:[
+      'Ustaw pomiar zanim zwiększysz produkcję treści z użyciem AI.',
+      'Świadomość marki wróciła do gry — nie licz wszystkiego wyłącznie ostatnim kliknięciem.',
+      'Krótkie wideo pozostaje formatem o najlepszym zwrocie w deklaracjach zespołów.'
+    ]
+  },
+  {
+    slug:'state-of-ai-agenci', cat:'ai', badge:'AI', year:'2025–26',
+    title:'The State of AI — agenci w firmach', source:'McKinsey & Company',
+    url:'https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-state-of-ai',
+    teaser:'Tylko <b>23% organizacji skaluje agentów AI</b> w co najmniej jednej funkcji, a 39% dopiero eksperymentuje. Dwie trzecie rynku tkwi w pilotażach.',
+    lead:'Największe cykliczne badanie adopcji AI w firmach. Interesuje nas w nim jedno: różnica między eksperymentem a wdrożeniem, które faktycznie zmienia koszt procesu.',
+    numbers:[['23%','organizacji skaluje agentów w co najmniej jednej funkcji'],['39%','jest na etapie eksperymentów'],['~2/3','rynku nie wyszło poza pilotaż']],
+    sections:[
+      ['Gdzie naprawdę jest rynek', [
+        'Mimo powszechnej obecności tematu w komunikacji korporacyjnej, skalę wdrożenia osiągnęła mniejszość. Około jedna czwarta firm skaluje rozwiązania agentowe w przynajmniej jednym obszarze, kolejne cztery dziesiąte eksperymentują, a reszta obserwuje.',
+        'Najdalej są branże technologiczne, gdzie funkcje inżynierskie i IT raportują najwyższy poziom wdrożeń. W marketingu i sprzedaży prym wiodą sektory z dużą liczbą powtarzalnych interakcji.'
+      ]],
+      ['Bariery są organizacyjne, nie technologiczne', [
+        'W badaniu na czoło wysuwają się kwestie regulacyjne i prawne, obawy o jakość i stronniczość odpowiedzi, brak strategii oraz stara infrastruktura danych. Rzadko pojawia się „model nie daje rady” — dziś zwykle daje.',
+        'To dobra wiadomość dla mniejszych firm: przewaga nie leży w dostępie do technologii, tylko w umiejętności doprowadzenia wdrożenia do końca.'
+      ]],
+      ['Jak zacząć w marketingu', [
+        'Wybieramy proces powtarzalny, kosztowny czasowo i o niskim koszcie błędu — opisy produktów, kwalifikacja zapytań, streszczenia rozmów. Mierzymy czas i koszt przed wdrożeniem, budujemy prototyp na realnych danych, testujemy jakość na zestawie kontrolnym i dopiero wtedy podejmujemy decyzję o skali.'
+      ]]
+    ],
+    takeaways:[
+      'Prototyp na własnych danych powiedz więcej niż dowolna prezentacja dostawcy.',
+      'Mierz koszt procesu przed i po — inaczej nie masz jak uzasadnić wdrożenia.',
+      'Zaczynaj od zadań o niskim koszcie pomyłki i wysokiej powtarzalności.'
+    ]
+  },
+  {
+    slug:'email-automation-benchmarks', cat:'ai', badge:'Automatyzacja', year:'2026',
+    title:'Benchmarki e-mail i automatyzacji', source:'Omnisend',
+    url:'https://www.omnisend.com/blog/email-marketing-benchmarks/',
+    teaser:'Wiadomości automatyczne konwertują <b>kilkanaście razy lepiej niż zwykłe kampanie</b> (1,49% vs 0,08%), a porzucony koszyk i sekwencja powitalna odpowiadają za około 76% zamówień z automatów.',
+    lead:'Zestawienie oparte na miliardach wysyłek. Najważniejsza liczba nie dotyczy otwarć, tylko różnicy między wysyłką masową a wiadomością wywołaną zachowaniem.',
+    numbers:[['1,49%','konwersja wiadomości automatycznych'],['0,08%','konwersja zwykłych kampanii masowych'],['76%','udział koszyka i powitania w zamówieniach z automatów']],
+    sections:[
+      ['Co mówią dane', [
+        'Różnica między automatem a kampanią masową jest różnicą rzędu wielkości: 1,49% konwersji wobec 0,08%. Powód jest banalny i dlatego łatwo go przeoczyć — automat trafia do osoby, która przed chwilą wykonała konkretne działanie, a kampania masowa do wszystkich naraz, w momencie wygodnym dla nadawcy.',
+        'Wewnątrz samych automatów rozkład też nie jest równy: porzucony koszyk i sekwencja powitalna odpowiadają za około trzy czwarte generowanych zamówień.'
+      ]],
+      ['Trzy scenariusze, od których zaczynamy', [
+        'Powitanie: dwie–trzy wiadomości w pierwszym tygodniu, z odpowiedzią na najczęstsze obiekcje przed zakupem, nie z historią firmy. Porzucony koszyk: pierwsza wiadomość po godzinie, druga po dobie, trzecia z konkretnym powodem powrotu. Odzyskiwanie: kontakt do osób, które kupiły raz i zniknęły na dłużej niż typowy cykl zakupowy w kategorii.',
+        'Dopiero po uruchomieniu tych trzech ma sens rozmowa o newsletterze.'
+      ]],
+      ['Czego nie robić', [
+        'Nie kopiujemy sekwencji z innej branży bez sprawdzenia cyklu zakupowego. Nie wysyłamy przypomnienia o koszyku osobie, która właśnie kupiła — to najprostszy sposób na wypisanie się z listy. I nie zapominamy o zgodach: automat wysyłający do bazy bez podstawy prawnej jest ryzykiem, nie dźwignią.'
+      ]]
+    ],
+    takeaways:[
+      'Uruchom powitanie i porzucony koszyk, zanim zaplanujesz kolejny newsletter.',
+      'Automaty ustawiaj na zachowanie, nie na kalendarz.',
+      'Sprawdź, czy scenariusze nie wysyłają do osób, które już kupiły.'
+    ]
+  },
+  {
+    slug:'consent-mode-v2', cat:'data', badge:'Pomiar', year:'2026',
+    title:'Consent Mode v2 i pomiar serwerowy', source:'Stape',
+    url:'https://stape.io/blog/google-consent-mode-v2',
+    teaser:'Konta bez poprawnej konfiguracji zgód <b>tracą od 15 do 40% mierzalnych konwersji</b> w Europie, a tych danych nie da się odzyskać wstecznie.',
+    lead:'Przewodnik wdrożeniowy dla GA4, Google Ads i kontenera po stronie serwera. Sprawdzamy według niego każde konto na starcie współpracy — i w większości przypadków coś tu nie gra.',
+    numbers:[['15–40%','utraconych mierzalnych konwersji przy złej konfiguracji'],['4','sygnały zgody wymagane przez Consent Mode v2'],['15 min','tyle zajmuje podstawowa weryfikacja tagów']],
+    sections:[
+      ['O co chodzi w Consent Mode v2', [
+        'Mechanizm przekazuje tagom Google informację o zgodzie użytkownika w czterech wymiarach — na przechowywanie danych reklamowych, na dane analityczne oraz na dwa parametry związane z personalizacją i przekazywaniem danych użytkownika. Bez tych sygnałów systemy Google nie mogą modelować brakujących konwersji, a część danych po prostu nie trafia na konto.',
+        'Dla firm kierujących ruch z Europejskiego Obszaru Gospodarczego to nie jest opcja — to warunek poprawnego działania pomiaru i kampanii.'
+      ]],
+      ['Jak sprawdzić to u siebie', [
+        'Otwórz stronę w trybie incognito, odrzuć zgody i sprawdź w narzędziu diagnostycznym Google, czy tagi raportują stan „odmowa”, a nie po prostu przestają istnieć. Następnie w panelu sieciowym przeglądarki znajdź żądania pomiarowe i sprawdź parametr opisujący stan zgód. Jeśli tego parametru nie ma, wdrożenie jest niekompletne.',
+        'Cała weryfikacja zajmuje kwadrans i warto ją zrobić przed jakąkolwiek dyskusją o wynikach kampanii.'
+      ]],
+      ['Po co do tego pomiar serwerowy', [
+        'Kontener po stronie serwera nie zwalnia z pytania o zgodę — te same sygnały muszą do niego trafić z przeglądarki. Daje za to trwalszy pomiar tam, gdzie zgoda została udzielona: mniej danych ginie na blokadach i ograniczeniach czasu życia identyfikatorów, a dane wychodzą z jednego, kontrolowanego przez Ciebie miejsca.'
+      ]]
+    ],
+    takeaways:[
+      'Zweryfikuj sygnały zgody, zanim ocenisz skuteczność kampanii.',
+      'Utracone dane nie uzupełniają się wstecz — każdy tydzień zwłoki kosztuje.',
+      'Pomiar serwerowy to uzupełnienie zgód, nie sposób na ich obejście.'
+    ]
+  },
+  {
+    slug:'omni-commerce-2026', cat:'data', badge:'Rynek PL', year:'2026',
+    title:'Omni-commerce. Kupuję wygodnie 2026', source:'Izba Gospodarki Elektronicznej',
+    url:'https://eizba.pl/2026-rok-intensyfikacji-zakupow-cyfrowych-i-inteligentnych/',
+    teaser:'<b>93% polskich internautów kupuje online</b>, a udział osób robiących zakupy transgraniczne co najmniej raz w tygodniu wzrósł z 10% do 17%.',
+    lead:'Jedenasta edycja badania polskiego rynku zakupowego. Najważniejszy wniosek nie dotyczy tego, ilu ludzi kupuje w sieci, tylko jak bardzo zatarła się granica między kanałami.',
+    numbers:[['93%','internautów kupujących online'],['10% → 17%','wzrost zakupów transgranicznych co najmniej raz w tygodniu'],['2/3','klientów kupuje te same marki online i offline']],
+    sections:[
+      ['Rynek wszedł w fazę intensyfikacji', [
+        'Baza klientów ustabilizowała się na wysokim poziomie — kupuje praktycznie każdy, kto korzysta z internetu. Zmienia się natomiast częstotliwość i liczba kanałów: Polacy kupują częściej, w większej liczbie miejsc i coraz chętniej za granicą. Udział osób robiących zakupy transgraniczne co najmniej raz w tygodniu podskoczył z 10% do 17%.',
+        'Rośnie też udział urządzeń mobilnych i zakupów domykanych w pełni cyfrowo, od wyszukania po płatność.'
+      ]],
+      ['Koniec rozdzielnego liczenia kanałów', [
+        'Dwie trzecie badanych kupuje te same marki online i offline. To unieważnia raportowanie, w którym e-commerce i sklep stacjonarny mają osobne cele i osobno oceniane budżety — bo ten sam klient przechodzi między nimi w obrębie jednego zakupu.',
+        'Praktyczna konsekwencja: kampania online, która „nie dowozi” w panelu, może odpowiadać za wizytę w salonie. Bez pomiaru offline oceniasz połowę obrazu.'
+      ]],
+      ['Co z tym robić', [
+        'Minimum to wspólny wskaźnik dla obu kanałów i choćby prosty pomiar wpływu działań online na sprzedaż stacjonarną — kody, ankieta „skąd o nas wiesz”, dane z programu lojalnościowego. Przy rosnącej konkurencji transgranicznej warto też sprawdzić, czy Twoja kategoria nie odpływa właśnie do zagranicznych platform.'
+      ]]
+    ],
+    takeaways:[
+      'Ustaw wspólny cel dla kanału online i offline, nie dwa osobne.',
+      'Zmierz choćby zgrubnie wpływ reklamy online na sprzedaż stacjonarną.',
+      'Sprawdź, ile Twojej kategorii przejmują platformy zagraniczne.'
+    ]
+  }
+];
+
+/* --- karty na liście --- */
+(function(){
+  var grid = document.getElementById('eduGrid');
+  if(!grid) return;
+  grid.innerHTML = EDU.map(function(a){
+    return '<a class="edu-card" data-cat="'+a.cat+'" href="#/edukacja/'+a.slug+'">' +
+      '<div class="edu-top"><span class="edu-cat">'+esc(a.badge)+'</span><span class="edu-yr">'+esc(a.year)+'</span></div>' +
+      '<h3>'+esc(a.title)+'</h3><p>'+a.teaser+'</p>' +
+      '<div class="edu-src"><span>'+esc(a.source)+'</span><span class="edu-go">Czytaj omówienie →</span></div></a>';
+  }).join('');
+
+  var chips = document.querySelectorAll('#eduFilters .chip');
+  chips.forEach(function(chip){
+    chip.addEventListener('click', function(){
+      chips.forEach(function(c){ c.classList.remove('on'); });
+      chip.classList.add('on');
+      var f = chip.getAttribute('data-f');
+      grid.querySelectorAll('.edu-card').forEach(function(card){
+        card.hidden = !(f === 'all' || card.getAttribute('data-cat') === f);
+      });
+    });
+  });
+})();
+
+/* --- podstrony artykułów: budowane leniwie, przy pierwszym wejściu na trasę --- */
+(function(){
+  var main = document.getElementById('top');
+  if(!main) return;
+  var built = {};
+  K.knownRoutes = EDU.map(function(a){ return '/edukacja/' + a.slug; });
+  K.buildRoute = function(route){
+    var idx = -1;
+    EDU.forEach(function(a,i){ if('/edukacja/' + a.slug === route) idx = i; });
+    if(idx < 0 || built[route]) return;
+    built[route] = true;
+    var a = EDU[idx];
+    var next = EDU[(idx+1) % EDU.length];
+    var page = document.createElement('div');
+    page.className = 'page';
+    page.setAttribute('data-page', route);
+    page.setAttribute('data-title', a.title + ' · Kliqa');
+    page.hidden = true;
+    page.innerHTML =
+      '<section class="page-head"><div class="wrap">' +
+        '<a class="back-link" href="#/edukacja">← Edukacja</a>' +
+        '<p class="eyebrow"><span class="b">[</span> '+esc(a.badge)+' · '+esc(a.year)+' <span class="b">]</span></p>' +
+        '<h1 class="display" style="margin-top:20px;font-size:clamp(34px,5.2vw,60px)">'+esc(a.title)+'</h1>' +
+        '<p class="lead">'+esc(a.lead)+'</p>' +
+        '<div class="page-meta"><span>Źródło: '+esc(a.source)+'</span><span>Omówienie: Kliqa</span></div>' +
+      '</div></section>' +
+      '<section class="sec wrap"><div class="art">' +
+        '<div class="art-body rv">' +
+          a.sections.map(function(s){
+            return '<h2>'+esc(s[0])+'</h2>' + s[1].map(function(p){ return '<p>'+esc(p)+'</p>'; }).join('');
+          }).join('') +
+          '<h2>Co z tego bierzemy do pracy</h2><ul>' +
+          a.takeaways.map(function(t){ return '<li>'+esc(t)+'</li>'; }).join('') + '</ul>' +
+          '<div class="art-foot">' +
+            '<a class="btn btn-ghost" href="'+a.url+'" target="_blank" rel="noopener noreferrer">Przeczytaj oryginał ↗</a>' +
+            '<a class="btn btn-line" href="#/edukacja/'+next.slug+'">Następny materiał: '+esc(next.title)+' <span class="ar">→</span></a>' +
+          '</div>' +
+        '</div>' +
+        '<aside class="art-aside">' +
+          '<div class="art-nums"><h3>Liczby, które warto zapamiętać</h3>' +
+            a.numbers.map(function(n){ return '<div class="art-num"><b>'+esc(n[0])+'</b><span>'+esc(n[1])+'</span></div>'; }).join('') +
+          '</div>' +
+          '<div class="art-srcbox"><h3>Źródło</h3><p>'+esc(a.source)+' — omówienie przygotowane przez Kliqa na podstawie publikacji autora. Liczby weryfikujemy przy każdej aktualizacji strony.</p>' +
+            '<a class="btn btn-line" href="'+a.url+'" target="_blank" rel="noopener noreferrer" style="width:100%;justify-content:center">Otwórz publikację ↗</a>' +
+          '</div>' +
+          '<div class="art-srcbox"><h3>Potrzebujesz tego u siebie?</h3><p>Sprawdzimy, jak te liczby wyglądają na Twoim koncie — bezpłatnie, w 48 godzin.</p>' +
+            '<a class="btn btn-fill" href="#/kontakt" style="width:100%;justify-content:center">Porozmawiajmy →</a>' +
+          '</div>' +
+        '</aside>' +
+      '</div></section>';
+    main.appendChild(page);
+  };
+})();
+
+/* ============================================================ 4. FORMULARZ */
+(function(){
+  var block = document.createElement('div');
+  block.id = 'ctBlock';
+  block.innerHTML =
+    '<form id="ctForm" novalidate>' +
+      '<div class="f-row">' +
+        '<div class="field"><label for="f-name">Imię i nazwisko *</label><input id="f-name" type="text" placeholder="Anna Kowalska" autocomplete="name" required></div>' +
+        '<div class="field"><label for="f-company">Firma</label><input id="f-company" type="text" placeholder="Nazwa firmy" autocomplete="organization"></div>' +
+      '</div>' +
+      '<div class="f-row">' +
+        '<div class="field"><label for="f-email">E-mail *</label><input id="f-email" type="email" placeholder="anna@firma.pl" autocomplete="email" required></div>' +
+        '<div class="field"><label for="f-phone">Telefon</label><input id="f-phone" type="tel" placeholder="+48 600 000 000" autocomplete="tel"></div>' +
+      '</div>' +
+      '<div class="field"><label>Zakres współpracy</label><div class="scope" id="scope">' +
+        ['Performance marketing','Strona / sklep','SEO','Automatyzacja','AI','Social media'].map(function(s){
+          return '<label><input type="checkbox" value="'+s+'"><span>'+s+'</span></label>';
+        }).join('') +
+      '</div></div>' +
+      '<div class="field"><label for="f-site">Adres strony</label><input id="f-site" type="text" placeholder="twojafirma.pl"></div>' +
+      '<div class="field"><label for="f-msg">Opis *</label>' +
+        '<textarea id="f-msg" placeholder="Sprzedajemy meble w Polsce i Czechach. ROAS spadł z 6 do 3,2 w pół roku, nie wiemy dlaczego." required></textarea></div>' +
+      '<input type="text" id="f-hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">' +
+      '<label class="consent"><input type="checkbox" id="f-rodo" required><span>Zgadzam się na kontakt w sprawie mojego zapytania. Administratorem danych jest Kliqa; dane przetwarzamy wyłącznie w celu odpowiedzi na to zgłoszenie.</span></label>' +
+      '<div class="f-foot"><button class="btn btn-fill" type="submit">Wyślij zapytanie <span class="ar">→</span></button><span class="mono">→ biuro@kliqa.pl</span></div>' +
+      '<p class="f-err" id="ctErr" role="alert"></p>' +
+    '</form>' +
+    '<div class="f-ok" id="ctOk" role="status">' +
+      '<h3>Wiadomość gotowa do wysyłki</h3>' +
+      '<p>Otworzyliśmy Twój program pocztowy z gotową treścią. Jeśli nic się nie otworzyło, skopiuj poniższy tekst i wyślij go na <b style="color:var(--lime)">biuro@kliqa.pl</b>.</p>' +
+      '<pre id="ctPreview"></pre>' +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
+        '<button class="btn btn-ghost" type="button" id="ctCopy">Skopiuj treść</button>' +
+        '<button class="btn btn-line" type="button" id="ctBack">Wróć do formularza</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(block);
+
+  var form = block.querySelector('#ctForm'), errEl = block.querySelector('#ctErr');
+  var okBox = block.querySelector('#ctOk'), preview = block.querySelector('#ctPreview');
+  var okTitle = okBox.querySelector('h3'), okText = okBox.querySelector('p');
+  var copyBtn = block.querySelector('#ctCopy');
+  /* Pusty adres = brak backendu (podgląd), wtedy działa tylko ścieżka mailto. */
+  var MAIL_ENDPOINT = "__MAIL_ENDPOINT__";
+  block.querySelectorAll('#scope input').forEach(function(inp){
+    inp.addEventListener('change', function(){ inp.parentNode.classList.toggle('on', inp.checked); });
+  });
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var v = function(id){ var el = block.querySelector('#'+id); return (el.value||'').trim(); };
+    var name=v('f-name'), email=v('f-email'), msg=v('f-msg');
+    if(!name){ errEl.textContent='Podaj imię i nazwisko — chcemy wiedzieć, do kogo piszemy.'; block.querySelector('#f-name').focus(); return; }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ errEl.textContent='Sprawdź adres e-mail — na ten adres wyślemy odpowiedź.'; block.querySelector('#f-email').focus(); return; }
+    if(msg.length<10){ errEl.textContent='Opisz krótko, nad czym pracujesz (minimum kilka słów).'; block.querySelector('#f-msg').focus(); return; }
+    if(!block.querySelector('#f-rodo').checked){ errEl.textContent='Potrzebujemy zgody na kontakt, żeby móc odpisać.'; return; }
+    errEl.textContent='';
+    var scope = Array.prototype.slice.call(block.querySelectorAll('#scope input:checked')).map(function(i){ return i.value; });
+    var body =
+      'Nowe zapytanie ze strony kliqa.pl\n--------------------------------\n' +
+      'Imię i nazwisko: ' + name + '\nFirma: ' + (v('f-company')||'—') + '\nE-mail: ' + email +
+      '\nTelefon: ' + (v('f-phone')||'—') + '\nStrona: ' + (v('f-site')||'—') +
+      '\nZakres: ' + (scope.length?scope.join(', '):'—') +
+      '\n--------------------------------\n' + msg + '\n';
+    preview.textContent = 'Do: biuro@kliqa.pl\nTemat: Zapytanie ze strony — ' + name + '\n\n' + body;
+
+    function openPanel(){
+      form.style.display='none';
+      okBox.classList.add('show');
+      okBox.scrollIntoView({behavior: REDUCED?'auto':'smooth', block:'center'});
+    }
+    /* Bez endpointu (podgląd bez serwera) albo gdy wysyłka padnie: składamy gotową
+       wiadomość i otwieramy program pocztowy, z kopiowaniem treści jako zapasem. */
+    function mailtoFallback(note){
+      okTitle.textContent = 'Wiadomość gotowa do wysyłki';
+      okText.innerHTML = (note ? note + ' ' : '') +
+        'Otworzyliśmy Twój program pocztowy z gotową treścią. Jeśli nic się nie otworzyło, ' +
+        'skopiuj poniższy tekst i wyślij go na <b style="color:var(--lime)">biuro@kliqa.pl</b>.';
+      preview.style.display = '';
+      copyBtn.style.display = '';
+      openPanel();
+      var href = 'mailto:biuro@kliqa.pl?subject=' + encodeURIComponent('Zapytanie ze strony — ' + name) +
+                 '&body=' + encodeURIComponent(body.slice(0,1600));
+      try{ window.open(href, '_blank'); }catch(err){}
+    }
+    function sentOnServer(){
+      okTitle.textContent = 'Wiadomość wysłana';
+      okText.textContent = 'Dziękujemy — zgłoszenie trafiło na biuro@kliqa.pl. Odpowiadamy w ciągu ' +
+        'jednego dnia roboczego, zwykle pytaniami o liczby.';
+      preview.style.display = 'none';
+      copyBtn.style.display = 'none';
+      openPanel();
+    }
+
+    if(!MAIL_ENDPOINT){ mailtoFallback(''); return; }
+
+    var payload = {
+      name: name, company: v('f-company'), email: email, phone: v('f-phone'),
+      site: v('f-site'), scope: scope, message: msg, consent: true, website: v('f-hp')
+    };
+    var btn = form.querySelector('button[type=submit]');
+    var btnHtml = btn.innerHTML;
+    btn.disabled = true; btn.textContent = 'Wysyłam…';
+    fetch(MAIL_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, data: j }; }); })
+      .then(function(res){
+        if(!res.ok || !res.data || !res.data.ok) throw new Error((res.data && res.data.error) || 'Nie udało się wysłać.');
+        sentOnServer();
+      })
+      .catch(function(){
+        mailtoFallback('Serwer pocztowy nie odpowiedział, więc idziemy okrężną drogą:');
+      })
+      .then(function(){ btn.disabled = false; btn.innerHTML = btnHtml; });
+  });
+  block.querySelector('#ctBack').addEventListener('click', function(){
+    okBox.classList.remove('show'); form.style.display='flex';
+    preview.style.display = ''; copyBtn.style.display = '';
+  });
+  block.querySelector('#ctCopy').addEventListener('click', function(){
+    var btn=this, txt=preview.textContent;
+    var done=function(){ btn.textContent='Skopiowano ✓'; setTimeout(function(){ btn.textContent='Skopiuj treść'; },1800); };
+    function fallback(){
+      var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); done(); }catch(e){ btn.textContent='Skopiuj ręcznie'; }
+      document.body.removeChild(ta);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback);
+    else fallback();
+  });
+})();
+
+/* ============================================================ 5. START */
+K.onRouteChange = function(){ K.registerReveal(); };
+K.render(null);
+K.onScroll();
+})();
+</script>

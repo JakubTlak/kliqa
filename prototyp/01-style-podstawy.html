@@ -1,0 +1,188 @@
+<title>Kliqa</title>
+<meta name="description" content="Kliqa — agencja marketingowa, która zamienia kliknięcia w przychód. Performance marketing, strony www, SEO, automatyzacja, AI i social media.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;1,8..60,300&display=swap">
+<style>
+__ASSETS__
+:root{
+  color-scheme: dark;
+  --void:#000000; --carbon:#060606; --onyx:#1f1f1f; --graphite:#252525;
+  --iron:#313131; --slate:#3d3d3d; --fog:#525252; --ash:#7a7a7a; --smoke:#8a8a8a;
+  --pearl:#c5c5c5; --bone:#e5e5e5; --chalk:#ffffff;
+  --lime:#c5ff4a; --olive:#597321; --moss:#314013;
+
+  --serif:'Source Serif 4','PT Serif',ui-serif,Georgia,'Times New Roman',serif;
+  --sans:'Inter Tight',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+
+  --glow:0 0 8px 0 rgba(197,255,74,.45);
+  --page:1280px;
+  --gut:clamp(20px,5vw,48px);
+  --edge:clamp(18px,2.4vw,40px);
+  --sec:clamp(80px,10vw,120px);
+  --r-btn:4px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{
+  margin:0;color:var(--bone);
+  font-family:var(--sans);font-size:14px;line-height:1.55;font-weight:400;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  background-color:var(--carbon);
+}
+/* Tło stoi na dwóch przyklejonych do okna warstwach: poświaty i ziarno.
+   Warstwa o stałej pozycji jest kompozytowana raz — inaczej niż
+   background-attachment:fixed, który przemalowuje tło przy każdym przewinięciu.
+   Ziarno ma dawać chropowatość, nie szary szum, stąd krycie 5%. */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background-image:
+    radial-gradient(1200px 700px at 12% -5%, rgba(89,115,33,.10), transparent 60%),
+    radial-gradient(900px 600px at 92% 18%, rgba(37,37,37,.55), transparent 65%);
+  background-repeat:no-repeat;
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:var(--noise);
+  background-size:128px 128px;
+  background-repeat:repeat;
+  opacity:.05;
+}
+img{max-width:100%;display:block}
+a{color:inherit}
+button{font:inherit;color:inherit}
+::selection{background:var(--lime);color:#000}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+
+.wrap{max-width:var(--page);margin:0 auto;padding-inline:var(--gut)}
+
+/* ---------- typografia ---------- */
+.eyebrow{font-family:var(--sans);font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.22em;color:var(--ash);margin:0}
+.eyebrow .b{color:var(--fog)}
+.display{font-family:var(--serif);font-weight:300;color:var(--chalk);letter-spacing:-.03em;line-height:.94;margin:0;text-wrap:balance;font-size:clamp(40px,8vw,86px)}
+.h2{font-family:var(--serif);font-weight:300;color:var(--chalk);font-size:clamp(32px,5vw,56px);line-height:1.02;letter-spacing:-.025em;margin:0;text-wrap:balance}
+.h3{font-family:var(--serif);font-weight:300;color:var(--chalk);font-size:clamp(23px,2.8vw,30px);line-height:1.12;letter-spacing:-.015em;margin:0}
+.accent{font-style:italic;color:var(--lime)}
+.lead{font-size:16px;line-height:1.7;color:var(--bone);max-width:58ch;margin:0}
+.mono{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ash)}
+.tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--smoke);border:1px solid var(--iron);border-radius:2px;padding:3px 7px}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:24px;border-bottom:1px solid var(--graphite);padding-bottom:14px;margin-bottom:44px}
+.sec-idx{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--fog);white-space:nowrap}
+
+/* ---------- przyciski ---------- */
+.btn{display:inline-flex;align-items:center;gap:10px;padding:14px 24px;border-radius:var(--r-btn);border:1px solid transparent;font-size:14px;font-weight:500;letter-spacing:.04em;text-decoration:none;cursor:pointer;transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease}
+.btn-fill{background:var(--lime);color:#000;box-shadow:var(--glow)}
+.btn-fill:hover{background:#d5ff77;transform:translateY(-1px)}
+.btn-ghost{background:transparent;border-color:var(--lime);color:var(--lime);box-shadow:var(--glow);text-transform:uppercase;letter-spacing:.08em}
+.btn-ghost:hover{background:rgba(197,255,74,.09)}
+.btn-line{background:transparent;border-color:var(--slate);color:var(--bone)}
+.btn-line:hover{border-color:var(--fog);background:var(--onyx)}
+.btn .ar{transition:transform .2s ease}
+.btn:hover .ar{transform:translateX(3px)}
+
+/* ---------- nawigacja: logo przy lewej krawędzi, CTA przy prawej ---------- */
+.nav{position:sticky;top:0;z-index:60;background:rgba(0,0,0,.94);border-bottom:1px solid var(--graphite)}
+.nav-in{width:100%;padding-inline:var(--edge);height:70px;display:flex;align-items:center;justify-content:space-between;gap:24px}
+
+/* ---------- logotyp: znak „K” pełni rolę pierwszej litery, dalej „liqa” ---------- */
+/* Logotyp: sam znak „K” z kursorem i iskrą — bez dopisków. */
+.brand{display:inline-flex;align-items:center;text-decoration:none;color:var(--chalk);padding:4px}
+.brand-mark{
+  width:34px;height:40px;flex:none;background:currentColor;
+  -webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat;
+  transition:color .2s ease,transform .2s ease;
+}
+.brand:hover .brand-mark{color:var(--lime);transform:scale(1.05)}
+@media(max-width:560px){ .brand-mark{width:28px;height:33px} }
+
+.nav-links{display:flex;align-items:center;gap:30px}
+.nav-links a{font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:.18em;color:var(--chalk);text-decoration:none;transition:color .18s ease}
+.nav-links a:hover,.nav-links a.on{color:var(--lime)}
+.nav-cta{padding:11px 22px;font-size:13px}
+.nav-burger{display:none;background:none;border:1px solid var(--slate);border-radius:var(--r-btn);padding:9px 13px;cursor:pointer;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+@media(max-width:1080px){
+  .nav-links{display:none}
+  .nav-burger{display:inline-block}
+  .nav-links.open{display:flex;position:absolute;left:0;right:0;top:70px;flex-direction:column;align-items:flex-start;gap:0;background:var(--void);border-bottom:1px solid var(--graphite)}
+  .nav-links.open a{padding:16px var(--edge);width:100%;border-top:1px solid var(--graphite)}
+}
+@media(max-width:620px){.nav-cta{display:none}}
+
+/* ---------- strony ---------- */
+.page[hidden]{display:none}
+.page-head{padding-block:clamp(56px,8vw,96px) clamp(32px,5vw,56px);border-bottom:1px solid var(--graphite)}
+.page-head .display{font-size:clamp(38px,6.4vw,72px)}
+.page-head .lead{margin-top:26px}
+.page-meta{display:flex;gap:22px;flex-wrap:wrap;margin-top:30px;font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--fog)}
+.back-link{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ash);text-decoration:none;margin-bottom:26px}
+.back-link:hover{color:var(--lime)}
+
+/* ---------- hero ---------- */
+/* Hero wchodzi pod pasek nawigacji, dzięki czemu przyklejona scena od pierwszej klatki
+   pokrywa się dokładnie z oknem — nic nie wystaje poniżej krawędzi i nie trzeba podjeżdżać. */
+.hero{position:relative;height:380vh;margin-top:-70px}
+.hero-stage{position:sticky;top:0;height:100vh;min-height:520px;overflow:hidden;background:var(--void)}
+/* Kolejność malowania: tło → płótno z globusem → winieta → treść.
+   Warstwa tła musi być POD płótnem, inaczej zasłania teren przy pełnym zbliżeniu. */
+.stage-bg{
+  position:absolute;inset:0;z-index:0;pointer-events:none;opacity:var(--bgo,0);
+  background:
+    radial-gradient(120% 90% at 50% 112%, rgba(89,115,33,.50), transparent 60%),
+    radial-gradient(85% 65% at 50% -12%, rgba(197,255,74,.12), transparent 68%),
+    linear-gradient(180deg, #04060a 0%, #080c06 55%, #0d1408 100%);
+}
+#globe{position:absolute;inset:0;z-index:1;width:100%;height:100%;touch-action:pan-y;cursor:grab}
+#globe.drag{cursor:grabbing}
+.hero-vig{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:var(--vig,1);
+  background:radial-gradient(ellipse 62% 56% at 50% 46%,rgba(0,0,0,.74) 0%,rgba(0,0,0,.46) 45%,rgba(0,0,0,0) 74%)}
+
+/* Ambient: poświaty w rogach, delikatna siatka i znaczniki kadru — gasną przy zbliżeniu. */
+.hero-amb{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:var(--amb,1)}
+.hero-amb::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(420px 300px at 0% 0%, rgba(197,255,74,.09), transparent 70%),
+    radial-gradient(460px 320px at 100% 0%, rgba(89,115,33,.14), transparent 72%),
+    radial-gradient(520px 340px at 0% 100%, rgba(89,115,33,.12), transparent 72%),
+    radial-gradient(480px 320px at 100% 100%, rgba(197,255,74,.07), transparent 70%);
+}
+.hero-amb::after{
+  content:"";position:absolute;inset:0;opacity:.5;
+  background:repeating-linear-gradient(180deg, rgba(255,255,255,.028) 0 1px, transparent 1px 3px);
+  mix-blend-mode:overlay;
+}
+.corner{position:absolute;width:26px;height:26px;border:1px solid rgba(197,255,74,.35)}
+.corner.tl{left:var(--edge);top:98px;border-right:0;border-bottom:0}
+.corner.tr{right:var(--edge);top:98px;border-left:0;border-bottom:0}
+.corner.bl{left:var(--edge);bottom:112px;border-right:0;border-top:0}
+.corner.br{right:var(--edge);bottom:112px;border-left:0;border-top:0}
+
+/* Środek liczony względem obszaru pod paskiem nawigacji, nie całego okna. */
+.slide{position:absolute;left:50%;top:calc(50% + 35px);width:min(100%,1000px);padding-inline:var(--gut);display:flex;flex-direction:column;align-items:center;gap:24px;text-align:center;z-index:3}
+.slide-1{opacity:var(--s1o,1);transform:translate(-50%,calc(-50% + var(--s1y,0px)))}
+.slide-2{opacity:var(--s2o,0);transform:translate(-50%,calc(-50% + var(--s2y,44px)))}
+.slide .display{text-shadow:0 2px 18px rgba(0,0,0,.92), 0 0 42px rgba(0,0,0,.55)}
+.slide .hero-sub{text-shadow:0 1px 12px rgba(0,0,0,.9)}
+.slide .eyebrow{text-shadow:0 1px 10px rgba(0,0,0,.9)}
+.hero-sub{max-width:54ch;color:var(--pearl);font-size:15px;line-height:1.7;margin:0}
+.slide-2 .hero-sub{color:var(--bone)}
+.hero-hud{position:absolute;left:0;right:0;bottom:44px;z-index:4;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding:0 var(--edge);font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--ash);text-transform:uppercase;pointer-events:none;opacity:var(--hud,1)}
+.hud-count{color:var(--lime);font-size:26px;letter-spacing:.02em;line-height:1;font-variant-numeric:tabular-nums}
+.hud-r{text-align:right}
+.hud-hint{display:inline-flex;align-items:center;gap:8px;color:var(--smoke)}
+.blip{width:6px;height:6px;border-radius:50%;background:var(--lime);box-shadow:var(--glow);animation:blip 1.8s ease-in-out infinite}
+@keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
+.geo-tag{position:absolute;left:var(--edge);top:140px;z-index:4;opacity:var(--geo,0);font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--lime);display:flex;align-items:center;gap:10px;pointer-events:none}
+.geo-tag::before{content:"";width:26px;height:1px;background:var(--lime);box-shadow:var(--glow)}
+.geo-sub{color:var(--ash);letter-spacing:.14em}
+.scroll-cue{position:absolute;left:50%;bottom:98px;transform:translateX(-50%);z-index:4;width:1px;height:52px;background:linear-gradient(180deg,transparent,var(--olive),var(--lime));opacity:var(--cue,1)}
+
+/* ---------- pasek z hasłami ---------- */
+.marquee{position:absolute;left:0;right:0;bottom:0;z-index:5;background:var(--lime);color:#000;border-top:1px solid rgba(0,0,0,.25);overflow:hidden;transform:translateY(var(--mq,105%));will-change:transform}
+.marquee-track{display:flex;width:max-content;animation:mq 38s linear infinite;will-change:transform}
+.marquee:hover .marquee-track{animation-play-state:paused}
+@keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.marquee-item{display:inline-flex;align-items:center;gap:18px;padding:11px 18px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;white-space:nowrap}
+.marquee-item::after{content:"✳";opacity:.55;font-size:10px}
+</style>
