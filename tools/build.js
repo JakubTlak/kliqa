@@ -226,8 +226,14 @@ fs.writeFileSync(path.join(OUT, 'sitemap.xml'),
   }).join('\n') +
   '\n</urlset>\n');
 
+// Uwaga: w tym samym katalogu stoi WordPress. Ten plik nadpisuje ewentualny robots.txt
+// sklepu — jeśli WordPress miał własne reguły, trzeba je tu dopisać.
 fs.writeFileSync(path.join(OUT, 'robots.txt'),
-  `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`);
+  `User-agent: *
+Allow: /
+
+Sitemap: ${SITE}/sitemap.xml
+`);
 
 for (const f of ['.htaccess', 'kontakt.php']) {
   fs.copyFileSync(path.join(ROOT, 'tools', 'hosting', f), path.join(OUT, f));

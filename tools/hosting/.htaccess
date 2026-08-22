@@ -1,12 +1,16 @@
 # Kliqa — konfiguracja serwera (Apache / LiteSpeed, hosting SeoHost)
 # Plik trafia do katalogu domeny: domains/kliqa.pl/public_html/.htaccess
+#
+# UWAGA: w tym katalogu stoi także WordPress z WooCommerce. Ten plik zawiera
+# ZARÓWNO reguły WordPressa, JAK I ustawienia nowego serwisu — jeśli usuniesz
+# blok WordPressa, przestaną działać linki bezpośrednie sklepu (produkty, kategorie,
+# wpisy zaczną zwracać 404).
+#
+# Nowy serwis żyje w katalogach: /uslugi/, /o-nas/, /edukacja/, /kontakt/, /assets/.
+# WordPress obsługuje resztę, łącznie ze stroną główną. Rozdział działa dlatego,
+# że reguła WordPressa przepuszcza istniejące pliki i katalogi (!-f, !-d).
 
-Options -Indexes -MultiViews
-
-# Adresy podstron kończą się ukośnikiem: /uslugi/ , /edukacja/consent-mode-v2/
-# Tak serwuje je serwer bez żadnych sztuczek — katalog + index.html. Wcześniejsza
-# próba trzymania adresów bez ukośnika wchodziła w konflikt z DirectorySlash
-# i kończyła się pętlą przekierowań, więc kanoniczna jest wersja z ukośnikiem.
+Options -Indexes
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -21,8 +25,18 @@ Options -Indexes -MultiViews
   RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# Nieznany adres pokazuje stronę główną (aplikacja i tak obsłuży trasę)
-ErrorDocument 404 /index.html
+# BEGIN WordPress
+# Standardowy blok WordPressa. Istniejące pliki i katalogi (czyli podstrony nowego
+# serwisu) są przepuszczane; cała reszta trafia do index.php.
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+# END WordPress
 
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
@@ -32,7 +46,6 @@ ErrorDocument 404 /index.html
 
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
-  Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
   # HSTS włącz dopiero, gdy HTTPS działa stabilnie przez kilka dni:
@@ -50,21 +63,10 @@ ErrorDocument 404 /index.html
   ExpiresByType application/javascript "access plus 30 days"
 </IfModule>
 
-<FilesMatch "\.(html)$">
-  <IfModule mod_headers.c>
-    Header set Cache-Control "no-cache, must-revalidate"
-  </IfModule>
-</FilesMatch>
-
-# Dane terenu to zwykły tekst base64 — niech serwer poda właściwy typ i pozwoli je scachować
+# Dane terenu to zwykły tekst base64 — właściwy typ i długi cache
 <FilesMatch "terrain\.b64\.txt$">
   ForceType text/plain
   <IfModule mod_headers.c>
     Header set Cache-Control "public, max-age=604800"
   </IfModule>
-</FilesMatch>
-
-# Nic poza katalogiem publicznym nie powinno być czytelne
-<FilesMatch "^\.">
-  Require all denied
 </FilesMatch>
