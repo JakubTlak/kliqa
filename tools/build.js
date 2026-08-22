@@ -127,8 +127,13 @@ const scriptsOut = fill(scripts, map);
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+/** Adres kanoniczny z ukośnikiem na końcu — dokładnie taki, jaki serwuje hosting. */
+function pageUrl(route) {
+  return SITE + (route === '/' ? '/' : route + '/');
+}
+
 function page({ route, title, desc }) {
-  const url = SITE + (route === '/' ? '/' : route);
+  const url = pageUrl(route);
   return `<!doctype html>
 <html lang="pl">
 <head>
@@ -215,7 +220,7 @@ const today = new Date().toISOString().slice(0, 10);
 fs.writeFileSync(path.join(OUT, 'sitemap.xml'),
   '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
   ROUTES.map((r) => {
-    const url = SITE + (r.route === '/' ? '/' : r.route);
+    const url = pageUrl(r.route);
     const prio = r.route === '/' ? '1.0' : (r.route.indexOf('/edukacja/') === 0 ? '0.6' : '0.8');
     return `  <url><loc>${url}</loc><lastmod>${today}</lastmod><priority>${prio}</priority></url>`;
   }).join('\n') +

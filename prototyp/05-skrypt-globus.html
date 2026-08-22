@@ -25,7 +25,9 @@ function routeFromLocation(){
   var h = (location.hash || '').replace(/^#/, '') || '/';
   return h.charAt(0) === '/' ? h : '/' + h;
 }
-function hrefFor(route){ return PATHS ? route : '#' + route; }
+/* Na hostingu adres podstrony kończy się ukośnikiem — tak serwer podaje katalog
+   z plikiem index.html, bez przekierowań i bez reguł w .htaccess. */
+function hrefFor(route){ return PATHS ? (route === '/' ? '/' : route + '/') : '#' + route; }
 /** Linki w znaczniku mają postać #/trasa; tutaj dostają data-route, a w trybie path także realny adres. */
 function wireLinks(root){
   (root || document).querySelectorAll('a[href^="#/"]').forEach(function(a){
