@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+/*
+  Kliqa — system designu.
+  Źródło tokenów: materiały/DESIGN.md (wariant „encrypted terminal / editorial broadsheet”).
+  Zasada: cały interfejs jest monochromatyczny, jedyny kolor chromatyczny to signal lime
+  i pojawia się wyłącznie w trzech rolach: wypełniony CTA, świecąca ramka, jedno kursywne
+  słowo w nagłówku. Nigdy w tekście ciągłym.
+*/
+
+@theme {
+  /* Kolory */
+  --color-void: #000000;
+  --color-carbon: #060606;
+  --color-onyx: #1f1f1f;
+  --color-graphite: #252525;
+  --color-iron: #313131;
+  --color-slate: #3d3d3d;
+  --color-fog: #525252;
+  --color-ash: #7a7a7a;
+  --color-smoke: #8a8a8a;
+  --color-pearl: #c5c5c5;
+  --color-bone: #e5e5e5;
+  --color-chalk: #ffffff;
+  --color-lime: #c5ff4a;
+  --color-olive: #597321;
+  --color-moss: #314013;
+
+  /* Typografia — rodziny podpięte przez next/font w layout.tsx */
+  --font-serif: var(--font-source-serif), ui-serif, Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Skala typograficzna */
+  --text-caption: 10px;
+  --text-body: 14px;
+  --text-subheading: 20px;
+  --text-heading-sm: 32px;
+  --text-heading: 49px;
+  --text-heading-lg: 72px;
+  --text-display: 89px;
+
+  /* Promienie — system jest ostry z założenia */
+  --radius-tag: 2px;
+  --radius-card: 0px;
+  --radius-btn: 4px;
+
+  /* Jedyny cień w systemie: poświata pod CTA */
+  --shadow-glow: 0 0 8px 0 rgba(197, 255, 74, 0.45);
+}
+
+:root {
+  color-scheme: dark;
+  --surface-canvas: var(--color-carbon);
+  --surface-card: var(--color-onyx);
+  --surface-raised: var(--color-graphite);
+  --surface-hover: var(--color-iron);
+  --page-max: 1280px;
+  --gutter: clamp(20px, 5vw, 48px);
+  --section-gap: clamp(80px, 10vw, 120px);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-canvas);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--color-lime);
+  color: #000;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-lime);
+  outline-offset: 3px;
+}
+
+section[id] {
+  scroll-margin-top: 72px;
+}
+
+/* Nagłówki wyświetlane — waga 300 jest podpisem marki, nie przypadkiem. */
+.display {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  color: var(--color-chalk);
+  letter-spacing: -0.03em;
+  line-height: 0.94;
+  text-wrap: balance;
+  font-size: clamp(40px, 8.4vw, 89px);
+}
+
+.h2 {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  color: var(--color-chalk);
+  font-size: clamp(32px, 5vw, 56px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+/* Jedno kursywne słowo w nagłówku — maksymalnie jedno na nagłówek. */
+.accent {
+  font-style: italic;
+  color: var(--color-lime);
+}
+
+/* Etykieta w stylu „stempla dokumentu” — nawiasy są częścią identyfikacji. */
+.eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--color-ash);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Tło aplikacji: ciemna baza, dwie słabe plamy światła i ziarno — nigdy płaski kolor. */
+body {
+  background-color: var(--color-carbon);
+  background-image:
+    radial-gradient(1200px 700px at 12% -5%, rgba(89, 115, 33, 0.10), transparent 60%),
+    radial-gradient(900px 600px at 92% 18%, rgba(37, 37, 37, 0.55), transparent 65%);
+  background-attachment: fixed;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: url('/grain.png');
+  background-size: 128px 128px;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+}
+
+/* Znak marki jako maska — dzięki temu bierze kolor tekstu i da się go podświetlić. */
+.brand-mark {
+  width: 21px;
+  height: 24px;
+  flex: none;
+  background: currentColor;
+  -webkit-mask: url('/logo-mask.png') center / contain no-repeat;
+  mask: url('/logo-mask.png') center / contain no-repeat;
+}

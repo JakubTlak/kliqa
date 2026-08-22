@@ -1,0 +1,41 @@
+# zależności
+node_modules/
+.pnp
+.pnp.*
+
+# build i cache
+.next/
+out/
+build/
+dist/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# środowisko — klucze API nigdy nie trafiają do repozytorium
+.env
+.env.local
+.env.*.local
+
+# hosting
+.vercel/
+
+# system i edytory
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# logi
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# dane pośrednie generatora terenu (odtwarzalne skryptami z tools/)
+tools/dem*.bin
+tools/*.json
+!tools/package.json
