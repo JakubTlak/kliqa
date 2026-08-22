@@ -50,7 +50,9 @@ jobs:
           test -f deploy/.htaccess
           test -f deploy/assets/terrain.b64.txt
           test "$(find deploy -name index.html | wc -l)" -eq 15
-          grep -q 'canonical" href="https://kliqa.pl/uslugi"' deploy/uslugi/index.html
+          # adres kanoniczny musi kończyć się ukośnikiem — dokładnie tak serwuje go hosting
+          grep -q 'canonical" href="https://kliqa.pl/uslugi/"' deploy/uslugi/index.html
+          grep -q '<loc>https://kliqa.pl/edukacja/consent-mode-v2/</loc>' deploy/sitemap.xml
           echo "OK — 15 podstron, zasoby i pliki serwera na miejscu"
 
       - name: Wyślij na serwer przez FTP
