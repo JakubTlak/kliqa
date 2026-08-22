@@ -31,7 +31,6 @@ export default function ContactForm() {
       email: String(fd.get("email") ?? ""),
       phone: String(fd.get("phone") ?? ""),
       site: String(fd.get("site") ?? ""),
-      budget: String(fd.get("budget") ?? ""),
       scope: fd.getAll("scope").map(String),
       message: String(fd.get("message") ?? ""),
       consent: fd.get("consent") === "on",
@@ -104,26 +103,13 @@ export default function ContactForm() {
         </div>
       </fieldset>
 
-      <div className="grid gap-[18px] sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <label className={label} htmlFor="budget">Miesięczny budżet mediowy</label>
-          <select id="budget" name="budget" className={field} defaultValue="">
-            <option value="">Wybierz przedział</option>
-            <option>do 5 000 zł</option>
-            <option>5 000 – 15 000 zł</option>
-            <option>15 000 – 50 000 zł</option>
-            <option>powyżej 50 000 zł</option>
-            <option>jeszcze nie wiem</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className={label} htmlFor="site">Adres strony</label>
-          <input id="site" name="site" placeholder="twojafirma.pl" className={field} />
-        </div>
+      <div className="flex flex-col gap-2">
+        <label className={label} htmlFor="site">Adres strony</label>
+        <input id="site" name="site" placeholder="twojafirma.pl" className={field} />
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className={label} htmlFor="message">Nad czym pracujesz? *</label>
+        <label className={label} htmlFor="message">Opis *</label>
         <textarea
           id="message"
           name="message"

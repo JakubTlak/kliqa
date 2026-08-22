@@ -16,11 +16,10 @@ export default function SiteHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-graphite bg-black/85 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-graphite bg-black/95">
       <div className="mx-auto flex h-16 max-w-[var(--page-max)] items-center justify-between gap-6 px-[var(--gutter)]">
         <Link href="/" className="flex items-center gap-[11px] text-chalk" aria-label="Kliqa — strona główna">
           <span className="brand-mark" aria-hidden="true" />
-          <span className="text-[15px] font-semibold uppercase leading-none tracking-[0.3em]">Kliqa</span>
         </Link>
 
         <nav className="hidden items-center gap-[30px] lg:flex">

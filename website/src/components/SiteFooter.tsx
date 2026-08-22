@@ -9,7 +9,6 @@ export default function SiteFooter() {
           <div className="max-w-[300px]">
             <Link href="/" className="flex items-center gap-[11px] text-chalk">
               <span className="brand-mark" aria-hidden="true" />
-              <span className="text-[15px] font-semibold uppercase leading-none tracking-[0.3em]">Kliqa</span>
             </Link>
             <p className="mt-3 leading-relaxed text-ash">
               Agencja marketingowa dla firm, które chcą wiedzieć, za co dokładnie płacą.

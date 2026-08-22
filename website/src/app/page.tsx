@@ -3,11 +3,10 @@ import HeroStage from "@/components/HeroStage";
 import ContactForm from "@/components/ContactForm";
 import { services } from "@/content/services";
 import { steps } from "@/content/process";
-import { clients } from "@/content/clients";
 
 /**
  * Strona główna. Zakres jest celowo wąski: slogan + globus, przejście do drugiego
- * sloganu z CTA, segmenty usług, droga współpracy, karuzela klientów, formularz.
+ * sloganu z CTA, segmenty usług, droga współpracy, formularz kontaktowy.
  * Opisy usług, historia agencji i materiały edukacyjne mają własne podstrony —
  * nie wolno ich tu dokładać (patrz PLAN.md, sekcja „Architektura serwisu”).
  */
@@ -31,11 +30,11 @@ export default function Home() {
         <HeroStage>
           <p className="eyebrow">[ PERFORMANCE · DANE · AUTOMATYZACJA ]</p>
           <h1 className="display">
-            Zamieniamy kliknięcia
-            <br />w <span className="accent">przychód</span>.
+            Zmieniamy kliknięcia
+            <br />w <span className="accent">przychód</span>
           </h1>
           <p className="max-w-[54ch] text-[15px] leading-relaxed text-pearl">
-            Każde kliknięcie ma swój koszt i swoją wartość. My mierzymy oba — i pilnujemy różnicy.
+            Nadajemy wartości każdemu kliknięciu.
           </p>
           <Link
             href="#kontakt"
@@ -128,32 +127,6 @@ export default function Home() {
             </li>
           ))}
         </ol>
-      </section>
-
-      <section className="overflow-hidden border-y border-graphite py-16">
-        <div className={wrap}>
-          <h2 className="h2">
-            Marki, które <span className="accent">skalowaliśmy</span>.
-          </h2>
-        </div>
-        <div className="mt-9 flex gap-3.5 overflow-x-auto px-[var(--gutter)] pb-2">
-          {clients.map((c) => (
-            <div
-              key={c.name}
-              className="grid h-24 w-[210px] flex-none place-items-center gap-0.5 rounded border border-graphite bg-onyx p-3"
-            >
-              <span className="text-center text-[15px] font-semibold uppercase tracking-[0.12em] text-pearl">
-                {c.name}
-              </span>
-              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-fog">{c.sector}</span>
-            </div>
-          ))}
-        </div>
-        <div className={wrap}>
-          <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.12em] text-fog">
-            [ Logotypy poglądowe — do podmiany na realne wdrożenia przed publikacją ]
-          </p>
-        </div>
       </section>
 
       <section id="kontakt" className={`${section} border-t border-graphite bg-void`}>

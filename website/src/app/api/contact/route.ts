@@ -20,7 +20,6 @@ const schema = z.object({
   email: z.string().trim().email("Sprawdź adres e-mail."),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
   site: z.string().trim().max(200).optional().or(z.literal("")),
-  budget: z.string().trim().max(60).optional().or(z.literal("")),
   scope: z.array(z.string().max(60)).max(10).optional(),
   message: z.string().trim().min(10, "Opisz krótko, nad czym pracujesz."),
   consent: z.literal(true, { message: "Potrzebujemy zgody na kontakt." }),
@@ -66,7 +65,6 @@ export async function POST(request: Request) {
     ["Telefon", d.phone || "—"],
     ["Strona", d.site || "—"],
     ["Zakres", d.scope?.length ? d.scope.join(", ") : "—"],
-    ["Budżet mediowy", d.budget || "—"],
   ];
 
   const html = `
