@@ -117,12 +117,46 @@ function canvas(W, H, bg) {
 
 fs.mkdirSync(OUT, { recursive: true });
 
-// favicon 32 i 64 — znak wypełnia niemal cały kwadrat, bo w karcie liczy się czytelność
-for (const size of [32, 64]) {
+// favicon 16, 32 i 64 — znak wypełnia niemal cały kwadrat, bo w karcie liczy się czytelność
+const kwadraty = {};
+for (const size of [16, 32, 64]) {
   const rgb = canvas(size, size, CARBON);
   const h = Math.round(size * 0.82), w = Math.round(h * src.w / src.h);
   drawMark(rgb, size, size, [Math.round((size - w) / 2), Math.round((size - h) / 2), w, h], [255, 255, 255]);
-  fs.writeFileSync(path.join(OUT, `favicon-${size}.png`), encodePNG(size, size, rgb));
+  const png = encodePNG(size, size, rgb);
+  kwadraty[size] = png;
+  if (size > 16) fs.writeFileSync(path.join(OUT, `favicon-${size}.png`), png);
+}
+
+// Ikony na ekran główny Androida. 512 z zapasem na maskę — system potrafi wyciąć z niej
+// koło albo kwadrat z zaokrągleniem, więc znak nie może dotykać krawędzi.
+for (const [size, udzial] of [[192, 0.62], [512, 0.52]]) {
+  const rgb = canvas(size, size, CARBON);
+  const h = Math.round(size * udzial), w = Math.round(h * src.w / src.h);
+  drawMark(rgb, size, size, [Math.round((size - w) / 2), Math.round((size - h) / 2), w, h], [255, 255, 255]);
+  fs.writeFileSync(path.join(OUT, `icon-${size}.png`), encodePNG(size, size, rgb));
+}
+
+// favicon.ico — przeglądarki i roboty pytają o /favicon.ico niezależnie od znaczników
+// w nagłówku. Bez tego pliku zapytanie trafiłoby na stronę błędu albo na starego WordPressa.
+{
+  const rozmiary = [16, 32, 64];
+  const naglowek = Buffer.alloc(6 + 16 * rozmiary.length);
+  naglowek.writeUInt16LE(0, 0); naglowek.writeUInt16LE(1, 2); naglowek.writeUInt16LE(rozmiary.length, 4);
+  let offset = naglowek.length;
+  rozmiary.forEach((size, i) => {
+    const png = kwadraty[size];
+    const at = 6 + i * 16;
+    naglowek[at] = size >= 256 ? 0 : size;
+    naglowek[at + 1] = size >= 256 ? 0 : size;
+    naglowek[at + 2] = 0; naglowek[at + 3] = 0;
+    naglowek.writeUInt16LE(1, at + 4);
+    naglowek.writeUInt16LE(32, at + 6);
+    naglowek.writeUInt32LE(png.length, at + 8);
+    naglowek.writeUInt32LE(offset, at + 12);
+    offset += png.length;
+  });
+  fs.writeFileSync(path.join(OUT, 'favicon.ico'), Buffer.concat([naglowek, ...rozmiary.map((r) => kwadraty[r])]));
 }
 
 // ikona na ekran główny (iOS wymaga tła, nie lubi przezroczystości)

@@ -2,6 +2,21 @@
 window.KLIQA = (function(){
 'use strict';
 var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* Profil jakości. Telefon liczy tę samą scenę na ułamku mocy laptopa, więc zamiast
+   jednego ustawienia dla wszystkich dobieramy gęstość punktów, liczbę satelitów
+   i rozdzielczość bufora do urządzenia. Wszystko mierzone raz, przy starcie. */
+var COARSE = window.matchMedia('(pointer: coarse)').matches;
+var CORES = navigator.hardwareConcurrency || 4;
+var MOBILE = COARSE || window.innerWidth < 820;
+var SLABY = MOBILE && (CORES <= 4 || window.innerWidth < 520);
+var Q = {
+  dpr:   SLABY ? 1 : (MOBILE ? 1.25 : 1.5),
+  krok:  SLABY ? 3 : (MOBILE ? 2 : 1),   // co który punkt lądu trafia na ekran
+  sats:  SLABY ? 8 : (MOBILE ? 12 : 18),
+  smugi: MOBILE ? 2 : 4,                 // ile pozycji śladu za satelitą
+  orbity: !SLABY                          // rysowanie okręgów orbit
+};
 var clamp = function(v,a,b){ return v<a?a:(v>b?b:v); };
 var smooth = function(e0,e1,x){ var t=clamp((x-e0)/(e1-e0),0,1); return t*t*(3-2*t); };
 var lerp = function(a,b,t){ return a+(b-a)*t; };
@@ -14,10 +29,17 @@ var API = { REDUCED: REDUCED, clamp: clamp, smooth: smooth, lerp: lerp, knownRou
    (tryb „hash”) te same trasy działają jako #/uslugi. */
 var ROUTE_MODE = "__ROUTE_MODE__";
 var PATHS = ROUTE_MODE === 'path';
-var TITLES = {'/':'Kliqa','/o-nas':'O nas · Kliqa','/uslugi':'Usługi · Kliqa','/edukacja':'Edukacja · Kliqa','/kontakt':'Kontakt · Kliqa'};
+var TITLES = {'/':'Kliqa','/o-nas':'O nas · Kliqa','/uslugi':'Usługi · Kliqa','/edukacja':'Edukacja · Kliqa','/kontakt':'Kontakt · Kliqa',
+              '/polityka-prywatnosci':'Polityka prywatności · Kliqa','/regulamin':'Regulamin · Kliqa','/404':'Nie znaleziono strony · Kliqa'};
+/* Plik 404.html serwer podstawia pod dowolny nieistniejący adres, więc ścieżka w pasku
+   nie mówi nic o tym, co pokazać. Znacznik na <body> rozstrzyga to jednoznacznie,
+   a zapamiętany adres pozwala wrócić do tej samej strony przyciskiem „wstecz”. */
+var WYMUS = document.body.getAttribute('data-trasa') || '';
+var ADRES_WYMUSZONY = WYMUS ? location.pathname : '';
 
 function allPages(){ return Array.prototype.slice.call(document.querySelectorAll('.page')); }
 function routeFromLocation(){
+  if(WYMUS && location.pathname === ADRES_WYMUSZONY) return WYMUS;
   if(PATHS){
     var p = location.pathname.replace(/index\.html$/, '').replace(/\/+$/, '');
     return p === '' ? '/' : p;
@@ -81,6 +103,9 @@ function render(scrollTarget){
     document.title = TITLES[r] || (active && active.getAttribute('data-title')) || 'Kliqa';
   }
   firstRender = false;
+  // Dane terenu ważą 138 KB i są potrzebne tylko pod globus. Na podstronach nie ma
+  // po co ich pobierać — czekają, aż odwiedzający faktycznie wejdzie na stronę główną.
+  if(r === '/') startTerrain();
   placeForm(active);
   API.onRouteChange(r, active);
   if(scrollTarget){
@@ -234,7 +259,7 @@ var globalFade = 1, terrainFade = 0, satFade = 1, satPush = 0;
 var SATS = (function(){
   var out = [], i, seed = 7;
   function rnd(){ seed = (seed*1664525 + 1013904223) % 4294967296; return seed/4294967296; }
-  for(i=0;i<18;i++){
+  for(i=0;i<Q.sats;i++){
     out.push({
       r: 1.22 + rnd()*0.62,
       inc: (rnd()-0.5)*1.5,
@@ -242,7 +267,7 @@ var SATS = (function(){
       phase: rnd()*Math.PI*2,
       speed: (0.10 + rnd()*0.18) * (rnd() > 0.35 ? 1 : -1),
       size: rnd() > 0.55 ? 4 : 3,
-      ring: i % 2 === 0,
+      ring: Q.orbity && i % 2 === 0,
       beam: i % 4 === 1
     });
   }
@@ -259,10 +284,20 @@ function orbitPoint(s, ang){
 
 function resize(){
   var r = canvas.getBoundingClientRect();
-  // 1.5 zamiast 2: przy tej gęstości punktów różnicy nie widać, a pikseli jest o 44% mniej
-  var dpr = DPR = Math.min(window.devicePixelRatio||1, 1.5);
+  // Skala bufora z profilu: na telefonie 1.25 zamiast 1.5 to o 30% mniej pikseli
+  // do wyczyszczenia i wgrania w każdej klatce, a przy tej gęstości punktów tego nie widać.
+  // Płótno bez układu (np. wywołanie przed pierwszym rozłożeniem strony) zostawiamy
+  // nietknięte — zapisanie zerowego rozmiaru zamroziłoby scenę do kolejnej klatki.
+  if(r.width < 2 || r.height < 2) return;
+  var dpr = Math.min(window.devicePixelRatio||1, Q.dpr);
+  var nw = Math.max(1, Math.round(Math.max(1, r.width)*dpr));
+  var nh = Math.max(1, Math.round(Math.max(1, r.height)*dpr));
+  // Przypisanie canvas.width czyści całe płótno nawet wtedy, gdy wartość się nie zmienia,
+  // a na telefonie zdarzenie resize leci przy każdym chowaniu paska adresu.
+  if(nw === canvas.width && nh === canvas.height && W > 0) return;
+  DPR = dpr;
   W = Math.max(1, r.width); H = Math.max(1, r.height);
-  canvas.width = Math.round(W*dpr); canvas.height = Math.round(H*dpr);
+  canvas.width = nw; canvas.height = nh;
   ctx.setTransform(dpr,0,0,dpr,0,0);
   R0 = Math.min(W,H) * (W < 760 ? 0.40 : 0.37);
   // Scena zajmuje całe okno, ale górne 70 px zasłania pasek nawigacji —
@@ -319,14 +354,24 @@ var nextSpawn = 0;
    Kilka tysięcy wywołań rect()+fill() kosztowało kilkanaście milisekund na klatkę;
    zapis do ImageData i jedno putImageData to ułamek tego. */
 var IMG = null, PIX = null, DPR = 1, imgDirty = false;
+/* Kula zajmuje środek kadru, reszta bufora zostaje pusta. Czyszczenie i wgrywanie
+   całego płótna to na telefonie kilkaset tysięcy pikseli na klatkę bez powodu,
+   więc pilnujemy prostokąta, w którym coś faktycznie narysowaliśmy. */
+var bx0 = 0, by0 = 0, bx1 = -1, by1 = -1;   // obszar zapisany w tej klatce
+var pbx0 = 0, pby0 = 0, pbx1 = -1, pby1 = -1; // obszar z poprzedniej — tylko ten czyścimy
 function ensureImg(){
   if(IMG && IMG.width === canvas.width && IMG.height === canvas.height) return;
   IMG = ctx.createImageData(canvas.width, canvas.height);
   PIX = new Uint32Array(IMG.data.buffer);
+  pbx1 = -1; pby1 = -1;
 }
 function imgReset(){
   ensureImg();
-  PIX.fill(0);
+  if(pbx1 >= pbx0 && pby1 >= pby0){
+    var w = canvas.width;
+    for(var y = pby0; y <= pby1; y++) PIX.fill(0, y*w + pbx0, y*w + pbx1 + 1);
+  }
+  bx0 = canvas.width; by0 = canvas.height; bx1 = -1; by1 = -1;
   imgDirty = true;
 }
 /** color: 0x00BBGGRR (bez alfy), a: 0..1, sz: bok kropki w pikselach urządzenia */
@@ -337,12 +382,19 @@ function putDot(sx, sy, sz, color, a){
   if(av < 4) return;
   var v = (av << 24) | color;
   if(sz <= 1){
-    if(px >= 0 && px < w && py >= 0 && py < h) PIX[py*w + px] = v;
+    if(px >= 0 && px < w && py >= 0 && py < h){
+      PIX[py*w + px] = v;
+      if(px < bx0) bx0 = px; if(px > bx1) bx1 = px;
+      if(py < by0) by0 = py; if(py > by1) by1 = py;
+    }
     return;
   }
   var x0 = px, x1 = px + sz, y0 = py, y1 = py + sz;
   if(x0 < 0) x0 = 0; if(y0 < 0) y0 = 0;
   if(x1 > w) x1 = w; if(y1 > h) y1 = h;
+  if(x0 >= x1 || y0 >= y1) return;
+  if(x0 < bx0) bx0 = x0; if(x1-1 > bx1) bx1 = x1-1;
+  if(y0 < by0) by0 = y0; if(y1-1 > by1) by1 = y1-1;
   for(var yy=y0; yy<y1; yy++){
     var row = yy*w;
     for(var xx=x0; xx<x1; xx++) PIX[row + xx] = v;
@@ -356,9 +408,19 @@ var GLOBE_CSS = [1.1,1.3,1.5,1.7,1.9];
 var TERR_CSS  = [1.3,1.5,1.9,2.3,2.7,1.7];
 var GLOBE_PX  = new Int32Array(5);
 var TERR_PX   = new Int32Array(6);
+/* Krok próbkowania: rysujemy co N-ty punkt. Ubytek gęstości nadrabiamy nieco większą
+   kropką, więc obraz zostaje ten sam, a pracy jest N razy mniej. */
+var KROK = 1, dodatek = 0;
+function ustawKrok(k){
+  k = clamp(k, 1, 4);
+  if(k === KROK) return;
+  KROK = k;
+  dodatek = k >= 3 ? 2 : (k >= 2 ? 1 : 0);
+  scaleDots();
+}
 function scaleDots(){
-  for(var i=0;i<5;i++) GLOBE_PX[i] = Math.max(1, Math.round(GLOBE_CSS[i]*DPR));
-  for(var k=0;k<6;k++) TERR_PX[k]  = Math.max(1, Math.round(TERR_CSS[k]*DPR));
+  for(var i=0;i<5;i++) GLOBE_PX[i] = Math.max(1, Math.round(GLOBE_CSS[i]*DPR) + (dodatek ? 1 : 0));
+  for(var k=0;k<6;k++) TERR_PX[k]  = Math.max(1, Math.round(TERR_CSS[k]*DPR) + dodatek);
 }
 
 function draw(now){
@@ -371,7 +433,7 @@ function draw(now){
   if(TERRA && globalFade > 0.01){
     var gp = TERRA.global;
     if(!imgDirty) imgReset();
-    for(i=0;i<gp.n;i++){
+    for(i=0;i<gp.n;i+=KROK){
       x = gp.xyz[i*3]; y = gp.xyz[i*3+1]; z = gp.xyz[i*3+2];
       x1 = x*cy + z*sy; z1 = -x*sy + z*cy;
       y2 = y*cp - z1*sp; z2 = y*sp + z1*cp;
@@ -387,7 +449,7 @@ function draw(now){
     var tx = target.xyz, tbk = target.bucket;
     if(!imgDirty) imgReset();
     var big = zoom > 6 ? 1 : 0;
-    for(i=0;i<target.n;i++){
+    for(i=0;i<target.n;i+=KROK){
       x = tx[i*3]; y = tx[i*3+1]; z = tx[i*3+2];
       x1 = x*cy + z*sy; z1 = -x*sy + z*cy;
       y2 = y*cp - z1*sp; z2 = y*sp + z1*cp;
@@ -400,7 +462,8 @@ function draw(now){
   }
   // Warstwa punktów idzie na płótno jednym zapisem; tło kuli dorysowujemy POD nią.
   if(imgDirty){
-    ctx.putImageData(IMG, 0, 0);
+    if(bx1 >= bx0 && by1 >= by0) ctx.putImageData(IMG, 0, 0, bx0, by0, bx1-bx0+1, by1-by0+1);
+    pbx0 = bx0; pby0 = by0; pbx1 = bx1; pby1 = by1;
     imgDirty = false;
     ctx.globalCompositeOperation = 'destination-over';
     if(sphereFade > 0.01){
@@ -435,7 +498,7 @@ function draw(now){
     }
     for(i=0;i<SATS.length;i++){
       s = SATS[i];
-      for(var tr=3; tr>=0; tr--){
+      for(var tr=Q.smugi-1; tr>=0; tr--){
         pt = orbitPoint(s, s.phase + (t - tr*0.22)*s.speed);
         x1 = pt[0]*cy + pt[2]*sy; z1 = -pt[0]*sy + pt[2]*cy;
         y2 = pt[1]*cp - z1*sp; z2 = pt[1]*sp + z1*cp;
@@ -497,7 +560,11 @@ function draw(now){
   }
 }
 
-var running = true, sizeTick = 0;
+var running = true, sizeTick = 0, rafId = 0;
+/* Uśredniony koszt jednej klatki. Profil ustawia punkt wyjścia, ale telefonów jest
+   zbyt wiele rodzajów, żeby zgadywać — jeśli scena nie mieści się w budżecie,
+   sama się rozrzedza, a gdy sprzęt wyrabia z zapasem, wraca do pełnej gęstości. */
+var koszt = 0, probka = 0;
 function frame(now){
   if((++sizeTick % 20) === 0){
     var cw = canvas.clientWidth, ch = canvas.clientHeight;
@@ -506,9 +573,21 @@ function frame(now){
   if(!locked && Math.abs(zoom-1) > 0.002) zoom = lerp(zoom, 1, 0.12);
   if(!REDUCED && !locked && !dragging){ yaw += 0.0016 + vyaw; vyaw *= 0.94; }
   if(!REDUCED && now > nextSpawn){ spawnAuto(); nextSpawn = now + 420 + Math.random()*900; }
-  if(running) draw(now);
-  requestAnimationFrame(frame);
+  if(running){
+    var t0 = performance.now();
+    draw(now);
+    var dt = performance.now() - t0;
+    koszt = koszt ? koszt*0.9 + dt*0.1 : dt;
+    if(++probka > 60){
+      probka = 0;
+      if(koszt > 9) ustawKrok(KROK + 1);
+      else if(koszt < 3.5 && KROK > Q.krok) ustawKrok(KROK - 1);
+    }
+  }
+  rafId = requestAnimationFrame(frame);
 }
+function startLoop(){ if(!rafId && !REDUCED) rafId = requestAnimationFrame(frame); }
+function stopLoop(){ if(rafId){ cancelAnimationFrame(rafId); rafId = 0; } }
 
 canvas.addEventListener('pointerdown', function(e){
   dragging=true; moved=0; downT=performance.now();
@@ -544,9 +623,18 @@ canvas.addEventListener('pointerup', function(e){
 });
 canvas.addEventListener('pointercancel', function(){ dragging=false; canvas.classList.remove('drag'); });
 
+ustawKrok(Q.krok);
 resize();
 if(window.ResizeObserver) new ResizeObserver(function(){ resize(); draw(performance.now()); }).observe(canvas);
-new IntersectionObserver(function(en){ running = en[0].isIntersecting; }, {threshold:0}).observe(canvas);
+/* Poza kadrem pętla nie działa wcale — na podstronach i przy przewinięciu poniżej hero
+   wątek główny zostaje w całości dla przewijania. */
+new IntersectionObserver(function(en){
+  running = en[0].isIntersecting;
+  if(running && !document.hidden) startLoop(); else stopLoop();
+}, {threshold:0}).observe(canvas);
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden) stopLoop(); else if(running) startLoop();
+});
 
 function loadTerrain(){
   if(TERRAIN_B64) return Promise.resolve(b64ToBytes(TERRAIN_B64));
@@ -556,18 +644,23 @@ function loadTerrain(){
     return r.text();
   }).then(function(t){ return b64ToBytes(t.trim()); });
 }
-loadTerrain()
-  .then(gunzip)
-  .then(function(buf){
-    TERRA = parseTerrain(buf);
-    terrainReady = true;
-    pickContinent();
-    draw(performance.now());
-    onScroll();
-  })
-  .catch(function(err){ console.warn('Teren niedostępny:', err && err.message); });
+var terenZamowiony = false;
+function startTerrain(){
+  if(terenZamowiony) return;
+  terenZamowiony = true;
+  loadTerrain()
+    .then(gunzip)
+    .then(function(buf){
+      TERRA = parseTerrain(buf);
+      terrainReady = true;
+      pickContinent();
+      draw(performance.now());
+      onScroll();
+    })
+    .catch(function(err){ console.warn('Teren niedostępny:', err && err.message); });
+}
 draw(performance.now());
-if(!REDUCED) requestAnimationFrame(frame);
+startLoop();
 
 /* ============================================================ 4. CHOREOGRAFIA HERO */
 var hero = document.getElementById('hero');

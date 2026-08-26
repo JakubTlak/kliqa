@@ -49,11 +49,23 @@ jobs:
           test -f deploy/kontakt.php
           test -f deploy/.htaccess
           test -f deploy/assets/terrain.b64.txt
-          test "$(find deploy -name index.html | wc -l)" -eq 15
+          test -f deploy/404.html
+          test -f deploy/favicon.ico
+          test -f deploy/robots.txt
+          test -f deploy/site.webmanifest
+          test -f deploy/assets/kliqa.js
+          test "$(find deploy/assets/fonts -name "*.woff2" | wc -l)" -eq 4
+          test "$(find deploy -name index.html | wc -l)" -eq 17
           # adres kanoniczny musi kończyć się ukośnikiem — dokładnie tak serwuje go hosting
           grep -q 'canonical" href="https://kliqa.pl/uslugi/"' deploy/uslugi/index.html
           grep -q '<loc>https://kliqa.pl/edukacja/consent-mode-v2/</loc>' deploy/sitemap.xml
-          echo "OK — 15 podstron, zasoby i pliki serwera na miejscu"
+          grep -q '<loc>https://kliqa.pl/polityka-prywatnosci/</loc>' deploy/sitemap.xml
+          # strona błędu nie może trafić do indeksu ani udawać strony głównej
+          grep -q 'noindex' deploy/404.html
+          grep -q 'data-trasa="/404"' deploy/404.html
+          # żadna strona nie może już wozić skryptów w treści
+          test "$(grep -c "<script" deploy/index.html)" -eq 3
+          echo "OK — 17 podstron, strona błędu, zasoby i pliki serwera na miejscu"
 
       - name: Wyślij na serwer przez FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

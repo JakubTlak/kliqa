@@ -264,6 +264,82 @@ form{display:flex;flex-direction:column;gap:18px}
 .ft-col a:hover{color:var(--lime)}
 .ft-bot{margin-top:40px;padding-top:20px;border-top:1px solid var(--graphite);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog)}
 
+/* ---------- dokumenty: polityka prywatności, regulamin ---------- */
+.doc-body h2{display:flex;align-items:baseline;gap:14px;font-size:clamp(21px,2.4vw,27px);scroll-margin-top:96px}
+.doc-n{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--lime);flex:none}
+.doc-body p{font-size:14.5px;line-height:1.78}
+.doc-body li{font-size:14px}
+.doc-body a{color:var(--lime);text-decoration:none;border-bottom:1px solid rgba(197,255,74,.32)}
+.doc-body a:hover{border-bottom-color:var(--lime)}
+.doc-body code{font-family:var(--mono);font-size:12.5px;color:var(--pearl);background:var(--onyx);border:1px solid var(--graphite);border-radius:2px;padding:1px 5px}
+/* Miejsca, w których musi stanąć podpis właściciela — widoczne na pierwszy rzut oka,
+   żeby nie trafiły na produkcję niezauważone. */
+.uzup{color:var(--lime);border-bottom:1px dashed rgba(197,255,74,.55);font-family:var(--mono);font-size:.86em;letter-spacing:.02em}
+.doc-spis{max-height:min(62vh,560px);overflow:auto}
+.doc-toc{margin:0;padding:0 0 0 2px;list-style:none;counter-reset:doc}
+.doc-toc li{counter-increment:doc;margin-bottom:9px;display:flex;gap:10px;align-items:baseline}
+.doc-toc li::before{content:counter(doc,decimal-leading-zero);font-family:var(--mono);font-size:10px;color:var(--fog);flex:none}
+.doc-toc a{color:var(--ash);font-size:12.5px;line-height:1.45;text-decoration:none}
+.doc-toc a:hover{color:var(--lime)}
+
+/* ---------- strona błędu 404 ---------- */
+.err-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:1px;background:var(--graphite);border:1px solid var(--graphite)}
+.err-card{display:flex;flex-direction:column;gap:9px;background:var(--carbon);padding:26px 24px 22px;text-decoration:none;transition:background .18s ease}
+.err-card:hover{background:var(--onyx)}
+.err-n{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--lime)}
+.err-card h2{font-family:var(--serif);font-weight:300;font-size:25px;line-height:1.1;color:var(--chalk);margin:0;letter-spacing:-.015em}
+.err-card p{margin:0;color:var(--ash);font-size:13px;line-height:1.6;flex:1}
+.err-note{margin:26px 0 0;color:var(--fog);font-family:var(--mono);font-size:11px;letter-spacing:.06em;line-height:1.7}
+.err-note a{color:var(--lime);text-decoration:none}
+
+/* ---------- odnośniki do dokumentów w stopce ---------- */
+.ft-legal{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.ft-legal a,.ft-legal button{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);text-decoration:none;background:none;border:0;padding:0;cursor:pointer}
+.ft-legal a:hover,.ft-legal button:hover{color:var(--lime)}
+
+/* ---------- zgody na cookies ---------- */
+/* Pasek wjeżdża dopiero po pierwszym renderze, żeby nie wchodzić w drogę treści
+   ani nie liczyć się jako przesunięcie układu przy pomiarze Core Web Vitals. */
+.zg{position:fixed;left:0;right:0;bottom:0;z-index:120;padding:var(--edge);pointer-events:none}
+.zg-in{max-width:var(--page);margin:0 auto;background:var(--carbon);border:1px solid var(--iron);box-shadow:0 -1px 0 rgba(197,255,74,.14),0 18px 48px rgba(0,0,0,.7);padding:clamp(20px,3vw,28px);display:flex;gap:clamp(18px,3vw,40px);align-items:flex-start;flex-wrap:wrap;pointer-events:auto;transform:translateY(14px);opacity:0;transition:transform .35s cubic-bezier(.2,.7,.3,1),opacity .35s ease}
+.zg.on .zg-in{transform:none;opacity:1}
+.zg-txt{flex:1 1 380px;min-width:0}
+.zg-txt h2{font-family:var(--serif);font-weight:300;font-size:23px;line-height:1.15;color:var(--chalk);margin:0 0 9px;letter-spacing:-.015em}
+.zg-txt p{margin:0;color:var(--ash);font-size:13px;line-height:1.65;max-width:66ch}
+.zg-txt a{color:var(--lime);text-decoration:none;border-bottom:1px solid rgba(197,255,74,.3)}
+.zg-akcje{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.zg-akcje .btn{padding:12px 20px;font-size:13px}
+.zg-link{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ash);background:none;border:0;cursor:pointer;padding:12px 4px}
+.zg-link:hover{color:var(--lime)}
+@media(max-width:720px){
+  /* Po przełączeniu na kolumnę podstawa flexa liczy się w pionie: 380px stawało się
+     wysokością bloku tekstu i pasek zajmował dwie trzecie ekranu telefonu. */
+  .zg-in{flex-direction:column;gap:18px}
+  .zg-txt{flex:0 0 auto}
+  .zg-akcje{width:100%}
+  .zg-akcje .btn{flex:1 1 140px;justify-content:center}
+}
+
+/* okno szczegółowych ustawień */
+.zg-mod{position:fixed;inset:0;z-index:130;display:none;align-items:center;justify-content:center;padding:var(--edge);background:rgba(0,0,0,.78)}
+.zg-mod.on{display:flex}
+.zg-box{width:min(660px,100%);max-height:min(86vh,760px);overflow:auto;background:var(--carbon);border:1px solid var(--iron);padding:clamp(24px,3vw,34px)}
+.zg-box h2{font-family:var(--serif);font-weight:300;font-size:clamp(26px,3.4vw,34px);line-height:1.08;color:var(--chalk);margin:0 0 12px;letter-spacing:-.02em}
+.zg-box>p{margin:0 0 26px;color:var(--ash);font-size:13.5px;line-height:1.65}
+.zg-kat{border-top:1px solid var(--graphite);padding:20px 0;display:flex;gap:18px;align-items:flex-start}
+.zg-kat:last-of-type{border-bottom:1px solid var(--graphite)}
+.zg-kat-txt{flex:1;min-width:0}
+.zg-kat h3{margin:0 0 6px;font-size:14px;font-weight:500;color:var(--chalk);letter-spacing:.01em}
+.zg-kat p{margin:0;color:var(--ash);font-size:12.5px;line-height:1.6}
+.zg-kat .zg-stale{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--fog);white-space:nowrap;padding-top:3px}
+/* Przełącznik: kwadratowy, jak reszta systemu — bez zaokrągleń rodem z panelu ustawień. */
+.zg-sw{position:relative;flex:none;width:46px;height:24px;border:1px solid var(--slate);background:var(--void);cursor:pointer;padding:0;transition:border-color .18s ease,background .18s ease}
+.zg-sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;background:var(--fog);transition:transform .18s ease,background .18s ease}
+.zg-sw[aria-checked="true"]{border-color:var(--lime);background:rgba(197,255,74,.12)}
+.zg-sw[aria-checked="true"]::after{transform:translateX(22px);background:var(--lime)}
+.zg-foot{margin-top:26px;display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:560px){ .zg-foot .btn{flex:1 1 100%;justify-content:center} }
+
 /* ---------- iskra kliknięcia ---------- */
 .spark{position:fixed;pointer-events:none;z-index:99;width:26px;height:26px;margin:-13px 0 0 -13px;border:1px solid var(--lime);border-radius:50%;animation:sp .55s ease-out forwards}
 @keyframes sp{from{transform:scale(.2);opacity:.9}to{transform:scale(1.9);opacity:0}}
@@ -281,5 +357,6 @@ form{display:flex;flex-direction:column;gap:18px}
   .cl-track,.marquee-track{animation:none}
   .cl-track{flex-wrap:wrap;width:auto;justify-content:center}
   .pz-card{opacity:1;transform:none}
+  .zg-in{transform:none;opacity:1}
 }
 </style>

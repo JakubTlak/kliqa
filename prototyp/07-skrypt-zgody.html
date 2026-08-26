@@ -1,0 +1,211 @@
+<script>
+/* ============================================================ ZGODY NA COOKIES
+
+   Serwis nie ustawia żadnego pliku cookie z własnej woli. Do zapamiętania decyzji
+   wystarcza pamięć lokalna przeglądarki: nie jedzie z każdym zapytaniem do serwera
+   i nie da się z niej zbudować identyfikatora poza tą domeną.
+
+   Domyślny stan to odmowa dla wszystkiego poza tym, co niezbędne — sygnał trafia do
+   Consent Mode v2 jeszcze w nagłówku strony, przed jakimkolwiek tagiem pomiarowym.
+   Ten moduł tylko go aktualizuje po decyzji odwiedzającego.
+
+   Publiczne wejście: KLIQA.zgody.otworz(), KLIQA.zgody.stan()
+   oraz zdarzenie „kliqa:zgody” na dokumencie — po nim można doładować GA4.
+   ============================================================================= */
+(function(){
+'use strict';
+var K = window.KLIQA || {};
+var KLUCZ = 'kliqa-zgody';
+var WERSJA = 1;                          // podnieś, gdy zmieni się lista narzędzi
+var WAZNOSC = 365*24*3600*1000;          // 12 miesięcy
+
+var KATEGORIE = [
+  { id:'niezbedne', stale:true, nazwa:'Niezbędne',
+    opis:'Zapis Twojej decyzji o zgodach i zabezpieczenie formularza przed automatami. Bez tego serwis nie zadziała poprawnie, więc tej kategorii nie da się wyłączyć.' },
+  { id:'statystyka', stale:false, nazwa:'Statystyka',
+    opis:'Pomiar odwiedzin: które podstrony są czytane, jak długo i skąd przychodzą odwiedzający. Używamy tego, żeby wiedzieć, co poprawić — nie do kierowania reklam.' },
+  { id:'marketing', stale:false, nazwa:'Marketing',
+    opis:'Pomiar skuteczności kampanii reklamowych i dopasowanie przekazu. Ta kategoria uruchamia narzędzia dostawców reklamowych, w tym poza Europejskim Obszarem Gospodarczym.' }
+];
+
+/* ---------------------------------------------------------------- pamięć */
+/* Pamięć bywa zablokowana (tryb prywatny, ustawienia firmowe). Wtedy działamy
+   bez zapisu: pasek pojawi się przy każdej wizycie, ale nic się nie wywróci. */
+function odczytaj(){
+  try{
+    var s = JSON.parse(localStorage.getItem(KLUCZ) || 'null');
+    if(!s || s.v !== WERSJA) return null;
+    if(!s.data || Date.now() - Date.parse(s.data) > WAZNOSC) return null;
+    return s;
+  }catch(e){ return null; }
+}
+function zapisz(st){
+  try{ localStorage.setItem(KLUCZ, JSON.stringify(st)); }catch(e){}
+}
+function nowy(statystyka, marketing){
+  return { v: WERSJA, data: new Date().toISOString(), statystyka: !!statystyka, marketing: !!marketing };
+}
+
+var stan = odczytaj();
+
+/* ------------------------------------------------------- sygnał do narzędzi */
+function przekaz(st){
+  if(typeof window.gtag === 'function'){
+    window.gtag('consent', 'update', {
+      analytics_storage:  st.statystyka ? 'granted' : 'denied',
+      ad_storage:         st.marketing  ? 'granted' : 'denied',
+      ad_user_data:       st.marketing  ? 'granted' : 'denied',
+      ad_personalization: st.marketing  ? 'granted' : 'denied'
+    });
+  }
+  try{ document.dispatchEvent(new CustomEvent('kliqa:zgody', { detail: st })); }catch(e){}
+}
+
+/* ------------------------------------------------------------------ pasek */
+var pasek = document.createElement('div');
+pasek.className = 'zg';
+pasek.setAttribute('role', 'region');
+pasek.setAttribute('aria-label', 'Zgody na cookies');
+pasek.hidden = true;
+pasek.innerHTML =
+  '<div class="zg-in">' +
+    '<div class="zg-txt">' +
+      '<h2>Zanim ruszysz dalej</h2>' +
+      '<p>Nie ustawiamy żadnych cookies, dopóki na to nie pozwolisz. Zgody pomagają nam mierzyć, co na tej stronie działa. Szczegóły: <a href="#/polityka-prywatnosci">polityka prywatności</a>.</p>' +
+    '</div>' +
+    '<div class="zg-akcje">' +
+      '<button class="zg-link" type="button" data-zg="ustawienia">Ustawienia</button>' +
+      '<button class="btn btn-line" type="button" data-zg="niezbedne">Tylko niezbędne</button>' +
+      '<button class="btn btn-fill" type="button" data-zg="wszystkie">Akceptuj wszystkie</button>' +
+    '</div>' +
+  '</div>';
+
+/* ------------------------------------------------------------------ okno */
+var okno = document.createElement('div');
+okno.className = 'zg-mod';
+okno.innerHTML =
+  '<div class="zg-box" role="dialog" aria-modal="true" aria-labelledby="zg-tytul">' +
+    '<h2 id="zg-tytul">Ustawienia prywatności</h2>' +
+    '<p>Zdecyduj, co możemy mierzyć. Wybór zapisujemy w pamięci przeglądarki na dwanaście miesięcy i możesz go zmienić w każdej chwili odnośnikiem w stopce.</p>' +
+    KATEGORIE.map(function(k){
+      return '<div class="zg-kat">' +
+        (k.stale
+          ? '<span class="zg-stale">Zawsze aktywne</span>'
+          : '<button class="zg-sw" type="button" role="switch" aria-checked="false" data-kat="'+k.id+'" aria-label="'+k.nazwa+'"></button>') +
+        '<div class="zg-kat-txt"><h3>'+k.nazwa+'</h3><p>'+k.opis+'</p></div>' +
+      '</div>';
+    }).join('') +
+    '<div class="zg-foot">' +
+      '<button class="btn btn-line" type="button" data-zg="niezbedne">Odrzuć wszystkie</button>' +
+      '<button class="btn btn-line" type="button" data-zg="zapisz">Zapisz wybór</button>' +
+      '<button class="btn btn-fill" type="button" data-zg="wszystkie">Akceptuj wszystkie</button>' +
+    '</div>' +
+  '</div>';
+
+document.body.appendChild(pasek);
+document.body.appendChild(okno);
+if(K.wireLinks) K.wireLinks(pasek);
+
+var przelaczniki = {};
+okno.querySelectorAll('.zg-sw').forEach(function(sw){
+  przelaczniki[sw.getAttribute('data-kat')] = sw;
+  sw.addEventListener('click', function(){
+    sw.setAttribute('aria-checked', sw.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+  });
+});
+function ustawPrzelaczniki(st){
+  Object.keys(przelaczniki).forEach(function(id){
+    przelaczniki[id].setAttribute('aria-checked', st && st[id] ? 'true' : 'false');
+  });
+}
+
+/* --------------------------------------------------------------- widoczność */
+var pokazany = false;
+function pokazPasek(){
+  if(pokazany) return;
+  pokazany = true;
+  pasek.hidden = false;
+  // Klatka zwłoki, żeby przejście miało od czego wystartować, a pasek nie liczył
+  // się do przesunięcia układu przy pierwszym renderze.
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ pasek.classList.add('on'); }); });
+}
+function schowajPasek(){
+  pasek.classList.remove('on');
+  setTimeout(function(){ pasek.hidden = true; }, K.REDUCED ? 0 : 380);
+}
+
+var wracaDo = null;
+function otworzOkno(){
+  wracaDo = document.activeElement;
+  ustawPrzelaczniki(stan);
+  okno.classList.add('on');
+  var pierwszy = okno.querySelector('.zg-sw, .btn');
+  if(pierwszy) pierwszy.focus();
+  document.addEventListener('keydown', klawisze, true);
+}
+function zamknijOkno(){
+  okno.classList.remove('on');
+  document.removeEventListener('keydown', klawisze, true);
+  if(wracaDo && wracaDo.focus) wracaDo.focus();
+  wracaDo = null;
+}
+/* Uwięzienie ogniska w oknie: bez tego Tab wychodzi na treść pod spodem,
+   której czytnik ekranu i tak nie powinien w tym momencie widzieć. */
+function klawisze(e){
+  if(e.key === 'Escape'){ e.preventDefault(); zamknijOkno(); return; }
+  if(e.key !== 'Tab') return;
+  var f = okno.querySelectorAll('button, [href], input, select, textarea');
+  if(!f.length) return;
+  var pierwszy = f[0], ostatni = f[f.length-1];
+  if(e.shiftKey && document.activeElement === pierwszy){ e.preventDefault(); ostatni.focus(); }
+  else if(!e.shiftKey && document.activeElement === ostatni){ e.preventDefault(); pierwszy.focus(); }
+}
+
+function rozstrzygnij(st){
+  stan = st;
+  zapisz(st);
+  przekaz(st);
+  zamknijOkno();
+  schowajPasek();
+}
+
+/* ------------------------------------------------------------------ akcje */
+document.addEventListener('click', function(e){
+  var el = e.target.closest('[data-zg], [data-zgody="otworz"]');
+  if(!el) return;
+  if(el.getAttribute('data-zgody') === 'otworz'){ e.preventDefault(); otworzOkno(); return; }
+  var akcja = el.getAttribute('data-zg');
+  if(akcja === 'ustawienia'){ otworzOkno(); }
+  else if(akcja === 'wszystkie'){ rozstrzygnij(nowy(true, true)); }
+  else if(akcja === 'niezbedne'){ rozstrzygnij(nowy(false, false)); }
+  else if(akcja === 'zapisz'){
+    rozstrzygnij(nowy(
+      przelaczniki.statystyka && przelaczniki.statystyka.getAttribute('aria-checked') === 'true',
+      przelaczniki.marketing  && przelaczniki.marketing.getAttribute('aria-checked')  === 'true'
+    ));
+  }
+});
+okno.addEventListener('click', function(e){ if(e.target === okno) zamknijOkno(); });
+
+/* ------------------------------------------------------------------ start */
+if(stan){ przekaz(stan); }
+else { pokazPasek(); }
+
+K.zgody = {
+  otworz: otworzOkno,
+  stan: function(){ return stan ? { statystyka: stan.statystyka, marketing: stan.marketing } : null; }
+};
+
+/* --------------------------------------------- adres na stronie błędu 404 */
+/* Odwiedzający widzi, pod jaki adres trafił — inaczej „404” nic mu nie mówi,
+   a nam trudniej zdiagnozować urwany odnośnik ze zgłoszenia. */
+var poprzedni = K.onRouteChange;
+K.onRouteChange = function(trasa, strona){
+  if(typeof poprzedni === 'function') poprzedni(trasa, strona);
+  if(trasa !== '/404') return;
+  var el = document.getElementById('err-url');
+  if(el) el.textContent = 'Adres: ' + (location.pathname + location.search).slice(0, 90);
+};
+if(document.querySelector('.page[data-page="/404"]:not([hidden])')) K.onRouteChange('/404', null);
+})();
+</script>

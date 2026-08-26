@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kliqa-hosting",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["tools/serwer-podgladu.js"],
+      "port": 4173
+    }
+  ]
+}
