@@ -60,7 +60,9 @@ kodu produkcyjnego. Etap 2 domyka różnicę między nimi.
 Do dołożenia później: `next-sitemap` (lub natywne `sitemap.ts`), `@next/third-parties` (GTM),
 MDX albo lekki CMS pod rozbudowę Edukacji, `@vercel/analytics` do Core Web Vitals z realnego ruchu.
 
-**Hosting:** Vercel. Domena `kliqa.pl` z rekordami do Vercela, poczta osobno — patrz punkt 6.
+**Hosting produkcyjny:** SeoHost (DirectAdmin, LiteSpeed) — serwis jedzie tam jako statyczne pliki
+budowane z `prototyp/`, patrz punkt 5b. Vercel pozostaje opcją dla projektu Next.js, gdy ten
+dogoni prototyp (etap 2).
 
 ---
 
