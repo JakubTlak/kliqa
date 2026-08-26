@@ -1,16 +1,16 @@
 # Kliqa — konfiguracja serwera (Apache / LiteSpeed, hosting SeoHost)
 # Plik trafia do katalogu domeny: domains/kliqa.pl/public_html/.htaccess
 #
-# UWAGA: w tym katalogu stoi także WordPress z WooCommerce. Ten plik zawiera
-# ZARÓWNO reguły WordPressa, JAK I ustawienia nowego serwisu — jeśli usuniesz
-# blok WordPressa, przestaną działać linki bezpośrednie sklepu (produkty, kategorie,
-# wpisy zaczną zwracać 404).
-#
-# Nowy serwis żyje w katalogach: /uslugi/, /o-nas/, /edukacja/, /kontakt/, /assets/.
-# WordPress obsługuje resztę, łącznie ze stroną główną. Rozdział działa dlatego,
-# że reguła WordPressa przepuszcza istniejące pliki i katalogi (!-f, !-d).
+# W tym katalogu leżą jeszcze pliki starego WordPressa. Serwis Kliqa go ignoruje:
+# strona główna to nasz index.html, a adresy, których nie ma w naszym serwisie,
+# pokazują naszą stronę główną — nie stronę WordPressa.
+# Panel /wp-admin/ nadal działa (to zwykły katalog), więc dostęp do starej instalacji
+# pozostaje, gdyby trzeba było coś z niej wyciągnąć.
 
 Options -Indexes
+
+# Nasz index.html ma pierwszeństwo przed index.php WordPressa
+DirectoryIndex index.html index.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -25,18 +25,22 @@ Options -Indexes
   RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
 </IfModule>
 
-# BEGIN WordPress
-# Standardowy blok WordPressa. Istniejące pliki i katalogi (czyli podstrony nowego
-# serwisu) są przepuszczane; cała reszta trafia do index.php.
-<IfModule mod_rewrite.c>
-RewriteEngine On
-RewriteBase /
-RewriteRule ^index\.php$ - [L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.php [L]
-</IfModule>
-# END WordPress
+# Nieznany adres pokazuje stronę główną nowego serwisu
+ErrorDocument 404 /index.html
+
+# --- reguły WordPressa (wyłączone) ---
+# Odkomentuj cały blok, jeśli stary WordPress ma znów obsługiwać swoje adresy
+# (wpisy, produkty, kategorie). Nasze podstrony i tak działają, bo są zwykłymi
+# katalogami z plikiem index.html i reguła je przepuszcza.
+#
+# <IfModule mod_rewrite.c>
+# RewriteEngine On
+# RewriteBase /
+# RewriteRule ^index\.php$ - [L]
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteCond %{REQUEST_FILENAME} !-d
+# RewriteRule . /index.php [L]
+# </IfModule>
 
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
