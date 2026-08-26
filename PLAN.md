@@ -32,7 +32,9 @@ Przycisk „Kontakt” w nawigacji prowadzi na podstronę `/kontakt`, nie do sek
 | Publikacja podglądowa (Artifact) | gotowa | link w historii rozmowy / galeria artefaktów |
 | Globus z terenem: 7 kontynentów, siatka topograficzna, losowanie przy każdym zjeździe | gotowy w prototypie | `kliqa-landing.html` |
 | Projekt Next.js: cztery trasy, tokeny, fonty, treść, ziarno tła, znak marki | gotowy do rozwoju | `website/` |
-| Formularz kontaktowy + endpoint wysyłki na `biuro@kliqa.pl` | gotowy, czeka na klucz API | `website/src/app/api/contact/route.ts` |
+| Formularz kontaktowy na produkcji (PHP na hostingu) | działa, potwierdzone próbną wysyłką | `tools/hosting/kontakt.php` |
+| Certyfikat SSL dla kliqa.pl | włączony | DirectAdmin / Let's Encrypt |
+| Formularz w projekcie Next.js (Resend) | gotowy, czeka na klucz API | `website/src/app/api/contact/route.ts` |
 | Dane terenu (globalna chmura + siatki kontynentów) | gotowe | `website/public/terrain.b64.txt` |
 
 Prototyp jest źródłem prawdy dla wyglądu i interakcji. Projekt Next.js jest źródłem prawdy dla
