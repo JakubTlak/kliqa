@@ -15,8 +15,8 @@ const RULES = [
   ["02", "Hipoteza zamiast opinii", "„Wydaje mi się, że ta grafika jest lepsza” nie jest argumentem. Argumentem jest test z zapisaną hipotezą i progiem istotności."],
   ["03", "Wszystko na Twoich kontach", "Konta reklamowe, analityka, domena, automatyzacje i kreacje są Twoje. Nie budujemy uzależnienia od agencji jako modelu biznesowego."],
   ["04", "Gasimy to, co nie zarabia", "Także wtedy, gdy kampania jest efektowna, a klientowi się podoba. Utrzymywanie ładnych, nierentownych działań to najdroższa uprzejmość w tej branży."],
-  ["05", "Mówimy „nie umiemy”", "Jeśli problem leży poza naszymi kompetencjami albo poza marketingiem — powiemy to wprost i wskażemy kogoś lepszego."],
-  ["06", "Jedna kategoria, jeden klient", "Nie obsługujemy bezpośredniej konkurencji naszych klientów. Wiedza z Twojego konta zostaje na Twoim koncie."],
+  ["05", "Mówimy „nie umiemy”", "Jeśli problem leży poza naszymi kompetencjami albo poza marketingiem — powiemy to wprost i wskażemy kogoś lepszego. Wolimy stracić zlecenie, niż wziąć pieniądze za coś, czego nie dowieziemy."],
+  ["06", "Bez prowizji od budżetu", "Nasze wynagrodzenie nie jest procentem od tego, ile wydasz na reklamę. Nie mamy więc żadnego powodu, żeby podbijać budżet bez uzasadnienia w liczbach."],
 ];
 
 const FACTS = [

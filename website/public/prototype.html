@@ -162,9 +162,25 @@ button{font:inherit;color:inherit}
 .slide{position:absolute;left:50%;top:calc(50% + 35px);width:min(100%,1000px);padding-inline:var(--gut);display:flex;flex-direction:column;align-items:center;gap:24px;text-align:center;z-index:3}
 .slide-1{opacity:var(--s1o,1);transform:translate(-50%,calc(-50% + var(--s1y,0px)))}
 .slide-2{opacity:var(--s2o,0);transform:translate(-50%,calc(-50% + var(--s2y,44px)))}
-.slide .display{text-shadow:0 2px 18px rgba(0,0,0,.92), 0 0 42px rgba(0,0,0,.55)}
-.slide .hero-sub{text-shadow:0 1px 12px rgba(0,0,0,.9)}
-.slide .eyebrow{text-shadow:0 1px 10px rgba(0,0,0,.9)}
+/* Tekst hero leży na ruchomej siatce punktów. Sam cień pod literami to za mało,
+   więc pod blokiem tekstu kładziemy miękką plamę przyciemnienia — rozmytą na brzegach,
+   żeby na tle kontynentu nie było widać prostokąta. */
+.slide::before{
+  content:"";position:absolute;left:50%;top:50%;z-index:-1;pointer-events:none;
+  width:min(1180px,124%);height:168%;transform:translate(-50%,-50%);
+  background:radial-gradient(ellipse 50% 44% at 50% 50%,
+    rgba(0,0,0,.80) 0%, rgba(0,0,0,.58) 42%, rgba(0,0,0,.22) 66%, rgba(0,0,0,0) 82%);
+}
+.slide-2::before{
+  background:radial-gradient(ellipse 54% 48% at 50% 50%,
+    rgba(0,0,0,.88) 0%, rgba(0,0,0,.68) 44%, rgba(0,0,0,.28) 68%, rgba(0,0,0,0) 84%);
+}
+.slide .display{text-shadow:0 2px 10px rgba(0,0,0,.95), 0 6px 30px rgba(0,0,0,.82), 0 0 64px rgba(0,0,0,.6)}
+.slide .hero-sub{text-shadow:0 1px 8px rgba(0,0,0,.95), 0 2px 22px rgba(0,0,0,.75)}
+.slide .eyebrow{text-shadow:0 1px 8px rgba(0,0,0,.95)}
+/* Pierwszy ekran to wizytówka — nagłówek dostaje większy stopień i mocniejszy kontrast. */
+.slide-1 .display{font-size:clamp(44px,8.9vw,98px);letter-spacing:-.035em}
+.slide-1 .hero-sub{font-size:16.5px;color:var(--bone)}
 .hero-sub{max-width:54ch;color:var(--pearl);font-size:15px;line-height:1.7;margin:0}
 .slide-2 .hero-sub{color:var(--bone)}
 .hero-hud{position:absolute;left:0;right:0;bottom:44px;z-index:4;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding:0 var(--edge);font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--ash);text-transform:uppercase;pointer-events:none;opacity:var(--hud,1)}
@@ -769,8 +785,8 @@ form{display:flex;flex-direction:column;gap:18px}
       <article class="rule"><span class="rule-n">02</span><h3>Hipoteza zamiast opinii</h3><p>„Wydaje mi się, że ta grafika jest lepsza” nie jest argumentem. Argumentem jest test z zapisaną hipotezą i progiem istotności.</p></article>
       <article class="rule"><span class="rule-n">03</span><h3>Wszystko na Twoich kontach</h3><p>Konta reklamowe, analityka, domena, automatyzacje i kreacje są Twoje. Nie budujemy uzależnienia od agencji jako modelu biznesowego.</p></article>
       <article class="rule"><span class="rule-n">04</span><h3>Gasimy to, co nie zarabia</h3><p>Także wtedy, gdy kampania jest efektowna, a klientowi się podoba. Utrzymywanie ładnych, nierentownych działań to najdroższa uprzejmość w tej branży.</p></article>
-      <article class="rule"><span class="rule-n">05</span><h3>Mówimy „nie umiemy”</h3><p>Jeśli problem leży poza naszymi kompetencjami albo poza marketingiem — powiemy to wprost i wskażemy kogoś lepszego. Zwykle to tańsze dla obu stron.</p></article>
-      <article class="rule"><span class="rule-n">06</span><h3>Jedna kategoria, jeden klient</h3><p>Nie obsługujemy bezpośredniej konkurencji naszych klientów. Wiedza z Twojego konta zostaje na Twoim koncie.</p></article>
+      <article class="rule"><span class="rule-n">05</span><h3>Mówimy „nie umiemy”</h3><p>Jeśli problem leży poza naszymi kompetencjami albo poza marketingiem — powiemy to wprost i wskażemy kogoś lepszego. Wolimy stracić zlecenie, niż wziąć pieniądze za coś, czego nie dowieziemy.</p></article>
+      <article class="rule"><span class="rule-n">06</span><h3>Bez prowizji od budżetu</h3><p>Nasze wynagrodzenie nie jest procentem od tego, ile wydasz na reklamę. Nie mamy więc żadnego powodu, żeby podbijać budżet bez uzasadnienia w liczbach.</p></article>
     </div>
   </section>
 
@@ -816,7 +832,7 @@ form{display:flex;flex-direction:column;gap:18px}
     <div class="wrap">
       <p class="eyebrow"><span class="b">[</span> USŁUGI <span class="b">]</span></p>
       <h1 class="display" style="margin-top:22px">Usługi opisane tak,<br>jak je <span class="accent">rozliczamy</span>.</h1>
-      <p class="lead">Każda usługa ma zakres prac, konkretne rezultaty i wskaźnik, na którym się rozliczamy. Przy każdej znajdziesz też działający model do poklikania — pokazuje sposób, w jaki podejmujemy decyzje.</p>
+      <p class="lead">Każda usługa ma zakres prac, konkretne rezultaty i wskaźnik, na którym się rozliczamy.</p>
     </div>
   </section>
 
@@ -836,7 +852,7 @@ form{display:flex;flex-direction:column;gap:18px}
         <div><p class="eyebrow" style="margin-bottom:12px">U 01 · GOOGLE · META · TIKTOK</p><h2 class="h3">Performance marketing</h2></div>
         <div class="seg-tags"><span class="tag">Search</span><span class="tag">PMax</span><span class="tag">Advantage+</span><span class="tag">Spark Ads</span></div>
       </div>
-      <p class="lead" style="margin-bottom:28px">Kampanie prowadzone jak portfel inwestycyjny: alokacja budżetu według krańcowego zwrotu, nie według przyzwyczajenia. Trzy platformy traktujemy jako jeden system, bo klient i tak nie widzi granicy między nimi.</p>
+      <p class="lead" style="margin-bottom:28px">Kampanie prowadzone jak portfel inwestycyjny: alokacja budżetu według krańcowego zwrotu, nie według przyzwyczajenia. Trzy platformy traktujemy jako jeden system.</p>
       <div class="sv-body">
         <div class="sv-col"><h4>Co robimy</h4><ul>
           <li>Audyt struktury kont, wykluczeń, feedu produktowego i historii zmian.</li>
@@ -1279,7 +1295,9 @@ function routeFromLocation(){
   var h = (location.hash || '').replace(/^#/, '') || '/';
   return h.charAt(0) === '/' ? h : '/' + h;
 }
-function hrefFor(route){ return PATHS ? route : '#' + route; }
+/* Na hostingu adres podstrony kończy się ukośnikiem — tak serwer podaje katalog
+   z plikiem index.html, bez przekierowań i bez reguł w .htaccess. */
+function hrefFor(route){ return PATHS ? (route === '/' ? '/' : route + '/') : '#' + route; }
 /** Linki w znaczniku mają postać #/trasa; tutaj dostają data-route, a w trybie path także realny adres. */
 function wireLinks(root){
   (root || document).querySelectorAll('a[href^="#/"]').forEach(function(a){
