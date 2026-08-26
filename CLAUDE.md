@@ -240,12 +240,13 @@ z tego projektu; obecnie działa wersja statyczna z `prototyp/`.
 
 ## 10. Do uzupełnienia przez właściciela
 
-1. **Dane rejestrowe — blokują wdrożenie dokumentów.** Polityka prywatności i regulamin mają
-   trzy miejsca oznaczone klasą `.uzup` (limonkowa, przerywana linia): nazwa firmy z adresem, NIP
-   i numerem KRS albo REGON — dwa razy — oraz nazwa i adres firmy hostingowej. Bez ich wypełnienia
-   dokumenty nie powinny trafić na produkcję; `grep -n "uzup" prototyp/04-podstrony.html` pokazuje wszystkie.
+1. **Dane rejestrowe w dokumentach.** Polityka prywatności i regulamin wskazują dziś administratora
+   ogólnie: „Kliqa — agencja marketingowa prowadząca ten serwis", z adresem `biuro@kliqa.pl` i zdaniem,
+   że pełne dane rejestrowe przekazujemy na żądanie. Hostingodawca jest opisany kategorią, nie nazwą.
+   Gdy dane firmy będą gotowe, trzeba je wstawić w trzech miejscach w `prototyp/04-podstrony.html`:
+   sekcja 01 polityki, sekcja 05 polityki (odbiorcy danych) i sekcja 01 regulaminu.
 2. **Przegląd prawny obu dokumentów.** Są napisane pod ten konkretny serwis (formularz, brak sprzedaży,
-   zgody), ale to nie jest opinia prawna — przed publikacją warto dać je radcy do przeczytania.
+   zgody) i działają na produkcji, ale to nie jest opinia prawna — warto dać je radcy do przeczytania.
 3. Dane rejestrowe w stopce (nazwa, adres, NIP) — dziś stopka ich nie zawiera.
 4. Weryfikacja obietnic operacyjnych w treści (48 h, 14 dni, zero raportów PDF).
 5. Profile w social media do stopki.
