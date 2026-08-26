@@ -77,7 +77,7 @@ const ROUTES = [
   {
     route: '/uslugi', file: 'uslugi/index.html',
     title: 'Usługi — performance, strony, SEO, automatyzacja, AI, social | Kliqa',
-    desc: 'Sześć usług opisanych tak, jak je rozliczamy: zakres prac, konkretne rezultaty i wskaźnik. Przy każdej działający model do poklikania.',
+    desc: 'Performance marketing w Google, Meta i TikTok, strony i sklepy, SEO, automatyzacja procesów, wdrożenia AI i social media. Przy każdej usłudze zakres prac, konkretne rezultaty i wskaźnik rozliczenia.',
   },
   {
     route: '/o-nas', file: 'o-nas/index.html',
