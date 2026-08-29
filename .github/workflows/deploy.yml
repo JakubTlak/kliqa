@@ -53,6 +53,9 @@ jobs:
           test -f deploy/favicon.ico
           test -f deploy/robots.txt
           test -f deploy/site.webmanifest
+          # potwierdzenie własności dla Google Search Console — Google sprawdza je
+          # cyklicznie, a zniknięcie pliku cofa weryfikację bez żadnego ostrzeżenia
+          test "$(find deploy -maxdepth 1 -name 'google*.html' | wc -l)" -ge 1
           test -f deploy/assets/kliqa.js
           test "$(find deploy/assets/fonts -name "*.woff2" | wc -l)" -eq 4
           test "$(find deploy -name index.html | wc -l)" -eq 17

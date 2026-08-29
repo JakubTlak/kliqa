@@ -396,8 +396,14 @@ fs.writeFileSync(path.join(OUT, 'site.webmanifest'), JSON.stringify({
   ],
 }, null, 2) + '\n');
 
-for (const f of ['.htaccess', 'kontakt.php']) {
-  fs.copyFileSync(path.join(ROOT, 'tools', 'hosting', f), path.join(OUT, f));
+/* Pliki serwera oraz potwierdzenia własności domeny. Google Search Console pobiera
+   swój plik pod dokładnym adresem w katalogu głównym, więc nazwa i treść muszą
+   przejść przez build nietknięte — inaczej przy najbliższym wdrożeniu witryna
+   po cichu traci status zweryfikowanej. */
+const HOSTING = path.join(ROOT, 'tools', 'hosting');
+const POTWIERDZENIA = fs.readdirSync(HOSTING).filter((f) => /^google[0-9a-z]+\.html$/i.test(f));
+for (const f of ['.htaccess', 'kontakt.php'].concat(POTWIERDZENIA)) {
+  fs.copyFileSync(path.join(HOSTING, f), path.join(OUT, f));
 }
 
 const wagaFontow = FONTY.reduce((s, f) => s + f.bajty.length, 0);
@@ -407,3 +413,4 @@ console.log('  stron:', ROUTES.length, '(+ strona błędu) · HTML łącznie', (
 console.log('  skrypt (wspólny, cache):', (Buffer.byteLength(scriptsOut) / 1024).toFixed(0) + ' KB ·', SKRYPT_URL);
 console.log('  kroje (wspólne, cache):', (wagaFontow / 1024).toFixed(0) + ' KB w', FONTY.length, 'plikach');
 console.log('  teren (wspólny, cache):', (Buffer.byteLength(terrain) / 1024).toFixed(0) + ' KB');
+if (POTWIERDZENIA.length) console.log('  potwierdzenia własności:', POTWIERDZENIA.join(', '));
